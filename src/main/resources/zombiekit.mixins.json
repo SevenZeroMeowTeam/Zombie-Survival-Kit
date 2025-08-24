@@ -4,10 +4,16 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "zombiekit.refmap.json",
   "mixins": [
-    "PlayerMixin"
+    "AbstractArrowMixin",
+    "LivingEntityMixin",
+    "PillagerMixin",
+    "PlayerMixin",
+    "ServerLevelMixin"
   ],
   "client": [
-    "MinecraftMixin"
+    "LocalPlayerMixin",
+    "MinecraftMixin",
+    "PlayerRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

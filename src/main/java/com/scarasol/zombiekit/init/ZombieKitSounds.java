@@ -39,6 +39,10 @@ public class ZombieKitSounds {
     public static final RegistryObject<SoundEvent> reactive_armor_release = REGISTRY.register("reactive_armor_release", () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(ZombieKitMod.MODID, "reactive_armor_release")));
     public static final RegistryObject<SoundEvent> mode_switch = REGISTRY.register("mode_switch", () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(ZombieKitMod.MODID, "mode_switch")));
     public static final RegistryObject<SoundEvent> radar_activated = REGISTRY.register("radar_activated", () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(ZombieKitMod.MODID, "radar_activated")));
+    public static final RegistryObject<SoundEvent> flamethrower = REGISTRY.register("flamethrower", () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(ZombieKitMod.MODID, "flamethrower")));
+    public static final RegistryObject<SoundEvent> flamethrower_reload = REGISTRY.register("flamethrower_reload", () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(ZombieKitMod.MODID, "flamethrower_reload")));
+    public static final RegistryObject<SoundEvent> flamethrower_reload_empty = REGISTRY.register("flamethrower_reload_empty", () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(ZombieKitMod.MODID, "flamethrower_reload_empty")));
+    public static final RegistryObject<SoundEvent> mortar_launch = REGISTRY.register("mortar_launch", () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(ZombieKitMod.MODID, "mortar_launch")));
 
 
 }

@@ -8,7 +8,8 @@ public interface BombBlock {
 
     default void exploded(Level level, int x, int y, int z, int amplifier){
         level.explode(null, x, y, z, amplifier, Level.ExplosionInteraction.NONE);
-        level.destroyBlock(new BlockPos(x, y, z), false);
+        if (level.getBlockState(new BlockPos(x, y, z)).getBlock() instanceof BombBlock)
+            level.destroyBlock(new BlockPos(x, y, z), false);
         if (CommonConfig.LANDMINE_CHAIN.get()){
             int range = CommonConfig.CHAIN_RANGE.get();
             for (int i = x - range; i <= x + range; i++){

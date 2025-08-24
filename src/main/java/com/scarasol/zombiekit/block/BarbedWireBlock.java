@@ -132,8 +132,8 @@ public class BarbedWireBlock extends Block {
             return;
         int stage = blockState.getValue(STAGE);
         switch (stage){
-            case 0 -> level.setBlock(blockPos, ZombieKitBlocks.BARBED_WIRE_BROKEN.get().defaultBlockState(), 3);
-            case 1 -> level.setBlock(blockPos, ZombieKitBlocks.BARBED_WIRE_EXTREMELY_BROKEN.get().defaultBlockState(), 3);
+            case 0 -> level.setBlock(blockPos, ZombieKitBlocks.BARBED_WIRE_BROKEN.get().defaultBlockState().setValue(FACING, blockState.getValue(FACING)), 3);
+            case 1 -> level.setBlock(blockPos, ZombieKitBlocks.BARBED_WIRE_EXTREMELY_BROKEN.get().defaultBlockState().setValue(FACING, blockState.getValue(FACING)), 3);
             case 2 -> level.destroyBlock(blockPos, false);
         }
     }

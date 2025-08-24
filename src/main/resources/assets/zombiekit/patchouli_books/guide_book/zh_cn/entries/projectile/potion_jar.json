@@ -2,7 +2,7 @@
   "name": "药剂罐",
   "icon": "zombiekit:potion_jar",
   "category": "zombiekit:projectile",
-  "sortnum": 4,
+  "sortnum": 5,
   "pages": [
     {
       "type": "patchouli:spotlight",

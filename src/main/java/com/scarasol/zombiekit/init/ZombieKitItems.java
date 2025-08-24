@@ -1,19 +1,25 @@
 package com.scarasol.zombiekit.init;
 
+import com.scarasol.sona.init.SonaMobEffects;
 import com.scarasol.zombiekit.ZombieKitMod;
+import com.scarasol.zombiekit.entity.projectile.MolotovCocktailEntity;
+import com.scarasol.zombiekit.entity.projectile.MortarShellEntity;
 import com.scarasol.zombiekit.item.*;
 import com.scarasol.zombiekit.item.armor.*;
 import com.scarasol.zombiekit.item.bonus.*;
 import com.scarasol.zombiekit.item.medical.*;
-import com.scarasol.zombiekit.item.projectile.BileJar;
-import com.scarasol.zombiekit.item.projectile.Firecracker;
-import com.scarasol.zombiekit.item.projectile.MolotovCocktail;
-import com.scarasol.zombiekit.item.projectile.PotionJar;
+import com.scarasol.zombiekit.item.projectile.*;
 import com.scarasol.zombiekit.item.weapon.*;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EquipmentSlot;
+import com.scarasol.zombiekit.item.weapon.parts.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.*;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.phys.AABB;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -101,19 +107,74 @@ public class ZombieKitItems {
     public static final RegistryObject<Item> WRENCH = REGISTRY.register("wrench", () -> new Wrench(new Item.Properties().stacksTo(4)));
 
     public static final RegistryObject<Item> CHAINSAW = REGISTRY.register("chainsaw", () -> new Chainsaw(new Item.Properties().stacksTo(1).durability(101).rarity(Rarity.UNCOMMON)));
+    public static final RegistryObject<Item> FLAMETHROWER = REGISTRY.register("flamethrower", () -> new Flamethrower(new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON)));
 
+    public static final RegistryObject<Item> FUEL_CANISTER = REGISTRY.register("fuel_canister", () -> new FuelCanister(new Item.Properties().durability(10000), FuelCanister.FuelType.NORMAL));
+    public static final RegistryObject<Item> NAPALM_CANISTER = REGISTRY.register("napalm_fuel_canister", () -> new FuelCanister(new Item.Properties().durability(10000), FuelCanister.FuelType.NAPALM));
+    public static final RegistryObject<Item> HIGH_TEMPERATURE_CANISTER = REGISTRY.register("high_temperature_fuel_canister", () -> new FuelCanister(new Item.Properties().durability(10000), FuelCanister.FuelType.HIGH_TEMPERATURE));
+
+    public static final RegistryObject<Item> MORTAR_SHELL = REGISTRY.register("mortar_shell", () -> new MortarShell(new Item.Properties()));
+    public static final RegistryObject<Item> MINE_LAYER_MORTAR_SHELL = REGISTRY.register("mine_layer_mortar_shell", () -> new MortarShell(new Item.Properties(), MortarShellEntity::mineLaying));
+    public static final RegistryObject<Item> FIRE_MORTAR_SHELL = REGISTRY.register("fire_mortar_shell", () -> new MortarShell(new Item.Properties(), MortarShellEntity::burn));
+    public static final RegistryObject<Item> SMOKE_MORTAR_SHELL = REGISTRY.register("smoke_mortar_shell", () -> new MortarShell(new Item.Properties(), MortarShellEntity::smoke));
 
     public static final RegistryObject<Item> MOLOTOV_COCKTAIL = REGISTRY.register("molotov_cocktail", () -> new MolotovCocktail(new Item.Properties().stacksTo(16)));
     public static final RegistryObject<Item> POTION_JAR = REGISTRY.register("potion_jar", () -> new PotionJar(new Item.Properties().stacksTo(16)));
     public static final RegistryObject<Item> BILE_JAR = REGISTRY.register("bile_jar", () -> new BileJar(new Item.Properties().stacksTo(16)));
     public static final RegistryObject<Item> FIRECRACKER = REGISTRY.register("firecracker", () -> new Firecracker(new Item.Properties().stacksTo(16)));
 
+    public static final RegistryObject<Item> PRIMARY_LIGHT_WEIGHTED_GRIP = REGISTRY.register("primary_light_weighted_grip", () -> new GripParts(new Item.Properties().stacksTo(1).rarity(Rarity.RARE), 0, GripParts.Material.LIGHT_WEIGHTED));
+    public static final RegistryObject<Item> IMPROVED_LIGHT_WEIGHTED_GRIP = REGISTRY.register("improved_light_weighted_grip", () -> new GripParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 1, GripParts.Material.LIGHT_WEIGHTED));
+    public static final RegistryObject<Item> ADVANCED_LIGHT_WEIGHTED_GRIP = REGISTRY.register("advanced_light_weighted_grip", () -> new GripParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 2, GripParts.Material.LIGHT_WEIGHTED));
+
+    public static final RegistryObject<Item> PRIMARY_HEAVY_WEIGHTED_GRIP = REGISTRY.register("primary_heavy_weighted_grip", () -> new GripParts(new Item.Properties().stacksTo(1).rarity(Rarity.RARE), 0, GripParts.Material.HEAVY_WEIGHTED));
+    public static final RegistryObject<Item> IMPROVED_HEAVY_WEIGHTED_GRIP = REGISTRY.register("improved_heavy_weighted_grip", () -> new GripParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 1, GripParts.Material.HEAVY_WEIGHTED));
+    public static final RegistryObject<Item> ADVANCED_HEAVY_WEIGHTED_GRIP = REGISTRY.register("advanced_heavy_weighted_grip", () -> new GripParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 2, GripParts.Material.HEAVY_WEIGHTED));
+
+    public static final RegistryObject<Item> PRIMARY_EXTEND_WEIGHTED_GRIP = REGISTRY.register("primary_extend_weighted_grip", () -> new GripParts(new Item.Properties().stacksTo(1).rarity(Rarity.RARE), 0, GripParts.Material.EXTEND));
+    public static final RegistryObject<Item> IMPROVED_EXTEND_WEIGHTED_GRIP = REGISTRY.register("improved_extend_weighted_grip", () -> new GripParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 1, GripParts.Material.EXTEND));
+    public static final RegistryObject<Item> ADVANCED_EXTEND_WEIGHTED_GRIP = REGISTRY.register("advanced_extend_weighted_grip", () -> new GripParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 2, GripParts.Material.EXTEND));
+
+    public static final RegistryObject<Item> PRIMARY_BURNING_CHARGING_PARTS = REGISTRY.register("primary_burning_charging_parts", () -> new BurningChargingParts(new Item.Properties().stacksTo(1).rarity(Rarity.RARE), 0));
+    public static final RegistryObject<Item> IMPROVED_BURNING_CHARGING_PARTS = REGISTRY.register("improved_burning_charging_parts", () -> new BurningChargingParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 1));
+    public static final RegistryObject<Item> ADVANCED_BURNING_CHARGING_PARTS = REGISTRY.register("advanced_burning_charging_parts", () -> new BurningChargingParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 2));
+
+    public static final RegistryObject<Item> PRIMARY_FREEZING_CHARGING_PARTS = REGISTRY.register("primary_freezing_charging_parts", () -> new FreezingChargingParts(new Item.Properties().stacksTo(1).rarity(Rarity.RARE), 0));
+    public static final RegistryObject<Item> IMPROVED_FREEZING_CHARGING_PARTS = REGISTRY.register("improved_freezing_charging_parts", () -> new FreezingChargingParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 1));
+    public static final RegistryObject<Item> ADVANCED_FREEZING_CHARGING_PARTS = REGISTRY.register("advanced_freezing_charging_parts", () -> new FreezingChargingParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 2));
+
+    public static final RegistryObject<Item> PRIMARY_BURNING_BATTLE_PARTS = REGISTRY.register("primary_burning_battle_parts", () -> new BurningBattleParts(new Item.Properties().stacksTo(1).rarity(Rarity.RARE), 0));
+    public static final RegistryObject<Item> IMPROVED_BURNING_BATTLE_PARTS = REGISTRY.register("improved_burning_battle_parts", () -> new BurningBattleParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 1));
+    public static final RegistryObject<Item> ADVANCED_BURNING_BATTLE_PARTS = REGISTRY.register("advanced_burning_battle_parts", () -> new BurningBattleParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 2));
+
+    public static final RegistryObject<Item> PRIMARY_FREEZING_BATTLE_PARTS = REGISTRY.register("primary_freezing_battle_parts", () -> new FreezingBattleParts(new Item.Properties().stacksTo(1).rarity(Rarity.RARE), 0));
+    public static final RegistryObject<Item> IMPROVED_FREEZING_BATTLE_PARTS = REGISTRY.register("improved_freezing_battle_parts", () -> new FreezingBattleParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 1));
+    public static final RegistryObject<Item> ADVANCED_FREEZING_BATTLE_PARTS = REGISTRY.register("advanced_freezing_battle_parts", () -> new FreezingBattleParts(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), 2));
 
     public static final RegistryObject<Item> BANDAGE = REGISTRY.register("bandage", () -> new Bandage(new Item.Properties().stacksTo(16)));
     public static final RegistryObject<Item> PAINKILLER = REGISTRY.register("painkiller", () -> new Painkiller(new Item.Properties().stacksTo(16)));
-    public static final RegistryObject<Item> MEDICAL_KIT = REGISTRY.register("medical_kit", () -> new MedicalKit(new Item.Properties()));
+    public static final RegistryObject<Item> MEDICAL_KIT = REGISTRY.register("medical_kit", () -> new MedicalKit(new Item.Properties().durability(8)));
     public static final RegistryObject<Item> SUSPICIOUS_DRUG = REGISTRY.register("suspicious_drug", () -> new SuspiciousDrug(new Item.Properties().stacksTo(16)));
     public static final RegistryObject<Item> MIRACLE = REGISTRY.register("miracle", () -> new Miracle(new Item.Properties().stacksTo(16).rarity(Rarity.RARE)));
+
+    public static final RegistryObject<Item> COMPRESSED_BISCUIT = REGISTRY.register("compressed_biscuit", () -> new TooltipItem(new Item.Properties().stacksTo(64)
+            .food((new FoodProperties.Builder()).nutrition(5).saturationMod(0.6f).build())));
+    public static final RegistryObject<Item> CHOCOLATE = REGISTRY.register("chocolate", () -> new TooltipItem(new Item.Properties().stacksTo(64)
+            .food((new FoodProperties.Builder()).nutrition(4).saturationMod(0.8f).build())));
+    public static final RegistryObject<Item> CANNED_YELLOW_PEACH = REGISTRY.register("canned_yellow_peach", () -> new TooltipItem(new Item.Properties().stacksTo(64)
+            .food((new FoodProperties.Builder()).nutrition(4).saturationMod(0.3f).build())));
+    public static final RegistryObject<Item> CANNED_BEEF_HOTPOT = REGISTRY.register("canned_beef_hotpot", () -> new TooltipItem(new Item.Properties().stacksTo(64)
+            .food((new FoodProperties.Builder()).nutrition(12).saturationMod(1.2f).build())));
+    public static final RegistryObject<Item> CANNED_LUNCHEON_MEAT = REGISTRY.register("canned_luncheon_meat", () -> new TooltipItem(new Item.Properties().stacksTo(64)
+            .food((new FoodProperties.Builder()).nutrition(6).saturationMod(0.8f).build())));
+    public static final RegistryObject<Item> CANNED_FISH = REGISTRY.register("canned_fish_in_black_bean_sauce", () -> new TooltipItem(new Item.Properties().stacksTo(64)
+            .food((new FoodProperties.Builder()).nutrition(6).saturationMod(0.8f).build())));
+    public static final RegistryObject<Item> CANNED_BREAD = REGISTRY.register("canned_bread", () -> new TooltipItem(new Item.Properties().stacksTo(64)
+            .food((new FoodProperties.Builder()).nutrition(5).saturationMod(0.6f).build())));
+    public static final RegistryObject<Item> CANNED_BEANS = REGISTRY.register("canned_beans", () -> new TooltipItem(new Item.Properties().stacksTo(64)
+            .food((new FoodProperties.Builder()).nutrition(5).saturationMod(0.6f).build())));
+    public static final RegistryObject<Item> CANNED_TOMATOES = REGISTRY.register("canned_tomatoes", () -> new TooltipItem(new Item.Properties().stacksTo(64)
+            .food((new FoodProperties.Builder()).nutrition(4).saturationMod(0.3f).build())));
 
 
     public static final RegistryObject<Item> FLARE_GUN = REGISTRY.register("flare_gun", () -> new FlareGun(new Item.Properties().stacksTo(4)));
@@ -121,6 +182,8 @@ public class ZombieKitItems {
     public static final RegistryObject<Item> BATTERY = REGISTRY.register("battery", () -> new Item(new Item.Properties().durability(100)));
 
     public static final RegistryObject<Item> SANDPAPER = REGISTRY.register("sandpaper", () -> new Item(new Item.Properties().durability(5)));
+
+    public static final RegistryObject<Item> PLASTIC_BAG = REGISTRY.register("plastic_bag", () -> new Item(new Item.Properties()));
 
     public static final RegistryObject<Item> ENERGY_ROD = REGISTRY.register("energy_rod", () -> new EnergyRod(new Item.Properties().rarity(Rarity.UNCOMMON)));
 
@@ -139,11 +202,17 @@ public class ZombieKitItems {
 
     public static final RegistryObject<Item> INJECTOR = block(ZombieKitBlocks.INJECTOR);
 
+    public static final RegistryObject<Item> SHOOTING_PARAMETER = REGISTRY.register("shooting_parameters_table", () -> new TooltipItem(new Item.Properties()));
+
     public static final RegistryObject<Item> POCKET_RADIO = REGISTRY.register("pocket_radio", () -> new PocketRadio(new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> SHORTWAVE_RADIO = block(ZombieKitBlocks.SHORTWAVE_RADIO);
 
-    public static final RegistryObject<Item> HEAVY_MACHINE_GUN_AMMO = REGISTRY.register("heavy_machine_gun_ammo", () -> new HeavyMachineGunAmmo(new Item.Properties()));
+    public static final RegistryObject<Item> VACUUM_PACKAGING_MACHINE = block(ZombieKitBlocks.VACUUM_PACKAGING_MACHINE);
+    public static final RegistryObject<Item> MORTAR_RACK = REGISTRY.register("mortar_rack", () -> new ZombieKitGeoBlockItem(ZombieKitBlocks.MORTAR_RACK.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> HEAVY_MACHINE_GUN_AMMO = REGISTRY.register("heavy_machine_gun_ammo", () -> new Item(new Item.Properties()));
     public static final RegistryObject<Item> HEAVY_MACHINE_GUN_SUMMON = REGISTRY.register("heavy_machine_gun_summon", () -> new HeavyMachineGun(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> MORTAR_SUMMON = REGISTRY.register("mortar_summon", () -> new Mortar(new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> DRONE_SUMMON = REGISTRY.register("drone_summon", () -> new Drone(new Item.Properties()));
 
     public static final RegistryObject<Item> GAS_TANK = block(ZombieKitBlocks.GAS_TANK);
@@ -178,17 +247,27 @@ public class ZombieKitItems {
 
     public static final RegistryObject<Item> DRONE_COMPONENTS = REGISTRY.register("drone_components", () -> new Item(new Item.Properties()));
     public static final RegistryObject<Item> MACHINE_GUN_COMPONENTS = REGISTRY.register("machine_gun_components", () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> MORTAR_COMPONENTS = REGISTRY.register("mortar_components", () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> BLUEPRINT1 = REGISTRY.register("blueprint_of_steel", () -> new Item(new Item.Properties().rarity(Rarity.RARE)));
+    public static final RegistryObject<Item> BLUEPRINT2 = REGISTRY.register("blueprint_of_dye", () -> new Item(new Item.Properties().rarity(Rarity.RARE)));
+    public static final RegistryObject<Item> BLUEPRINT3 = REGISTRY.register("blueprint_of_riot", () -> new Item(new Item.Properties().rarity(Rarity.RARE)));
+    public static final RegistryObject<Item> BLUEPRINT4 = REGISTRY.register("blueprint_of_landmine", () -> new Item(new Item.Properties().rarity(Rarity.RARE)));
+    public static final RegistryObject<Item> BLUEPRINT5 = REGISTRY.register("blueprint_of_drone", () -> new Item(new Item.Properties().rarity(Rarity.EPIC)));
+    public static final RegistryObject<Item> BLUEPRINT6 = REGISTRY.register("blueprint_of_heavy_machine_gun", () -> new Item(new Item.Properties().rarity(Rarity.EPIC)));
+    public static final RegistryObject<Item> BLUEPRINT7 = REGISTRY.register("blueprint_of_mortar", () -> new Item(new Item.Properties().rarity(Rarity.EPIC)));
 
 
-    public static final RegistryObject<Item> SCARASOL = REGISTRY.register("scarasol", () -> new Scarasol(new Item.Properties().rarity(Rarity.EPIC)));
-    public static final RegistryObject<Item> KYOKO = REGISTRY.register("kyoko", () -> new Kyoko(new Item.Properties().rarity(Rarity.EPIC)));
+    public static final RegistryObject<Item> SCARASOL = REGISTRY.register("scarasol", () -> new BonusItem(new Item.Properties().rarity(Rarity.EPIC)));
+    public static final RegistryObject<Item> KYOKO = REGISTRY.register("kyoko", () -> new BonusItem(new Item.Properties().rarity(Rarity.EPIC)));
     public static final RegistryObject<Item> WHITE_FOOD_CHESTPLATE = REGISTRY.register("white_food_chestplate", () -> new WhiteFood(ArmorMaterials.IRON, ArmorItem.Type.CHESTPLATE, new Item.Properties().rarity(Rarity.EPIC)));
-    public static final RegistryObject<Item> KARAZHAN = REGISTRY.register("karazhan", () -> new Karazhan(new Item.Properties().rarity(Rarity.EPIC)));
-    public static final RegistryObject<Item> IRON_CURTAIN = REGISTRY.register("iron_curtain", () -> new IronCurtain(new Item.Properties().rarity(Rarity.EPIC)));
-    public static final RegistryObject<Item> FLAME = REGISTRY.register("flame", () -> new Flame(new Item.Properties().rarity(Rarity.EPIC)));
+    public static final RegistryObject<Item> KARAZHAN = REGISTRY.register("karazhan", () -> new BonusItem(new Item.Properties().rarity(Rarity.EPIC)));
+    public static final RegistryObject<Item> IRON_CURTAIN = REGISTRY.register("iron_curtain", () -> new BonusItem(new Item.Properties().rarity(Rarity.EPIC)));
+    public static final RegistryObject<Item> FLAME = REGISTRY.register("flame", () -> new BonusItem(new Item.Properties().rarity(Rarity.EPIC)));
+    public static final RegistryObject<Item> AOKINAO = REGISTRY.register("aokinao", () -> new Aokinao(new Item.Properties().rarity(Rarity.EPIC)));
     public static final RegistryObject<Item> LHX_QING = REGISTRY.register("lhx_qing", () -> new LHXQing(Tiers.WOOD, 5, -2.4f, new Item.Properties().rarity(Rarity.EPIC)));
-    public static final RegistryObject<Item> SONA_BAKEMONO = REGISTRY.register("sona_bakemono", () -> new SonaBakemono(new Item.Properties().rarity(Rarity.EPIC)));
-    public static final RegistryObject<Item> KONN_GARA = REGISTRY.register("konn_gara", () -> new KonnGara(0, () -> ZombieKitSounds.konn_gara.get(), new Item.Properties().rarity(Rarity.EPIC), 100));
+    public static final RegistryObject<Item> SONA_BAKEMONO = REGISTRY.register("sona_bakemono", () -> new BonusItem(new Item.Properties().rarity(Rarity.EPIC)));
+    public static final RegistryObject<Item> KONN_GARA = REGISTRY.register("konn_gara", () -> new KonnGara(15, ZombieKitSounds.konn_gara, new Item.Properties().rarity(Rarity.EPIC), 204 * 20));
 
 
     private static RegistryObject<Item> block(RegistryObject<Block> block) {

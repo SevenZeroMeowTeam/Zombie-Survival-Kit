@@ -1,27 +1,19 @@
 package com.scarasol.zombiekit.block;
 
-import com.scarasol.zombiekit.config.CommonConfig;
+import com.scarasol.zombiekit.block.entity.ShortwaveRadioBlockEntity;
+import com.scarasol.zombiekit.init.ZombieKitBlockEntities;
 import com.scarasol.zombiekit.init.ZombieKitBlocks;
-import com.scarasol.zombiekit.init.ZombieKitTags;
+import com.scarasol.zombiekit.init.ZombieKitSounds;
 import com.scarasol.zombiekit.network.MapVariables;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.RenderType;
+import com.scarasol.zombiekit.network.NetworkHandler;
+import com.scarasol.zombiekit.network.SyncBlockPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.TagKey;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.Difficulty;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.entity.monster.PatrollingMonster;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.PickaxeItem;
@@ -30,33 +22,33 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.block.*;
-import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.network.NetworkHooks;
+import net.minecraftforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class ShortwaveRadioBlock extends Block {
+public class ShortwaveRadioBlock extends BaseEntityBlock{
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
     public static final BooleanProperty TURN_ON = BooleanProperty.create("turn_on");
-    public static final IntegerProperty TIME = IntegerProperty.create("time", 0, 1200);
+    public static final IntegerProperty TIME = IntegerProperty.create("time", 0, 1);
 
-    private static final Set<BlockPos> workRadios = new HashSet<>();
-    private final Map<Mob, BlockPos> survivorsNeedMove = new HashMap<>();
+
+    private static final Map<Level, Set<BlockPos>> workRadios = new HashMap<>();
+
 
     public ShortwaveRadioBlock(Properties properties) {
         super(properties);
@@ -68,6 +60,15 @@ public class ShortwaveRadioBlock extends Block {
         return box(0, 0, 0, 16, 12, 16);
     }
 
+    @Override
+    public RenderShape getRenderShape(BlockState p_49232_) {
+        return RenderShape.MODEL;
+    }
+
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new ShortwaveRadioBlockEntity(pos, state);
+    }
 
     @Override
     public void appendHoverText(ItemStack itemstack, BlockGetter world, List<Component> list, TooltipFlag flag) {
@@ -77,45 +78,24 @@ public class ShortwaveRadioBlock extends Block {
     }
 
     @Override
-    public void tick(BlockState blockstate, ServerLevel world, BlockPos pos, RandomSource random) {
-        super.tick(blockstate, world, pos, random);
-        moveSurvivors();
-        if (blockstate.getValue(TURN_ON)){
-            world.playSound(null, pos, ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation("zombiekit:radio_static")), SoundSource.BLOCKS, 1, 1);
-            int time = blockstate.getValue(TIME);
-            if (world.canSeeSkyFromBelowWater(pos) && world.isDay() && !world.getLevelData().isThundering()){
-                if (time < 600){
-                    if (random.nextDouble() < 0.000001 * time){
-                        if (spawnSurvivors(world, pos, random))
-                            world.setBlock(pos, blockstate.setValue(TIME, 0), 3);
-                    }
-                    world.setBlock(pos, blockstate.setValue(TIME, time + 1), 3);
-                }else if (time < 1200) {
-                    if (random.nextDouble() < 0.0006 + 0.000015 * (time - 600)){
-                        if (spawnSurvivors(world, pos, random))
-                            world.setBlock(pos, blockstate.setValue(TIME, 0), 3);
-                    }
-                    world.setBlock(pos, blockstate.setValue(TIME, time + 1), 3);
-                }else {
-                    if (random.nextDouble() < 0.01){
-                        if (spawnSurvivors(world, pos, random))
-                            world.setBlock(pos, blockstate.setValue(TIME, 0), 3);
-                    }
-                }
-            }
-
+    public InteractionResult use(BlockState blockState, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+        super.use(blockState, level, pos, player, hand, hit);
+        if (player instanceof ServerPlayer serverPlayer) {
+            NetworkHandler.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> serverPlayer), new SyncBlockPacket(0, pos, ((ShortwaveRadioBlockEntity) level.getBlockEntity(pos)).getContent()));
+            NetworkHooks.openScreen(serverPlayer, getMenuProvider(blockState, level, pos), pos);
         }
-        world.scheduleTick(pos, this, 20);
+        return InteractionResult.SUCCESS;
     }
 
     public static BlockPos findNearestRadio(BlockPos pos, Level world){
-        if (workRadios.size() == 0)
+        Set<BlockPos> levelRadios = getLevelRadios(world);
+        if (levelRadios.size() == 0)
             return null;
         BlockPos nearest = null;
         int nearestDistance = Integer.MAX_VALUE;
         int x = pos.getX();
         int z = pos.getZ();
-        for (BlockPos radio : workRadios){
+        for (BlockPos radio : levelRadios){
             if (!(world.getBlockState(radio).getBlock() == ZombieKitBlocks.SHORTWAVE_RADIO.get())){
                 removeRadio(radio, world);
                 continue;
@@ -131,132 +111,65 @@ public class ShortwaveRadioBlock extends Block {
 
     public static void saveRadioString(Level world){
         String workRadioToString = "";
-        if (workRadios.size() != 0){
-            for (BlockPos pos : workRadios){
+        Set<BlockPos> levelRadios = getLevelRadios(world);
+        if (levelRadios.size() != 0){
+            for (BlockPos pos : levelRadios){
                 String buffer = pos.getX() + "," + pos.getY() + "," + pos.getZ() + ";";
                 workRadioToString += buffer;
             }
         }
-        MapVariables.get(world).radio_location = workRadioToString;
+        MapVariables.get(world).radioLocation = workRadioToString;
         MapVariables.get(world).syncData(world);
     }
 
     public static void loadRadioString(LevelAccessor world){
-        String workRadioToString = MapVariables.get(world).radio_location;
+        String workRadioToString = MapVariables.get(world).radioLocation;
         if ("\"\"".equals(workRadioToString))
             workRadioToString = "";
         if (!"".equals(workRadioToString)){
+            Set<BlockPos> levelRadios = new HashSet<>();
             for (String posStr : workRadioToString.split(";")){
                 String[] pos = posStr.split(",");
-                workRadios.add(new BlockPos(Integer.parseInt(pos[0]), Integer.parseInt(pos[1]), Integer.parseInt(pos[2])));
+                levelRadios.add(new BlockPos(Integer.parseInt(pos[0]), Integer.parseInt(pos[1]), Integer.parseInt(pos[2])));
             }
+            workRadios.put((Level) world, levelRadios);
         }
     }
 
     public static void addRadio(BlockPos pos, Level world){
-        workRadios.add(pos);
+        getLevelRadios(world).add(pos);
         saveRadioString(world);
     }
 
     public static void removeRadio(BlockPos pos, Level world){
-        workRadios.remove(pos);
+        getLevelRadios(world).remove(pos);
         saveRadioString(world);
     }
 
-    public boolean spawnSurvivors(ServerLevel world, BlockPos pos, RandomSource random){
-        int x = pos.getX();
-        int y = pos.getY();
-        int z = pos.getZ();
-        int tx;
-        int tz;
-        int dx;
-        int dz;
-        int dr;
-        for (int index0 = 0; index0 < 100; index0++) {
-            dr = Mth.nextInt(random, 48, 64);
-            dx = Mth.nextInt(random, 0, dr);
-            dr = dr - dx;
-            dz = dr;
-            if (Mth.nextInt(random, 1, 2) == 1) {
-                tx = x + dx;
-            } else {
-                tx = x - dx;
-            }
-            if (Mth.nextInt(random, 1, 2) == 1) {
-                tz = z + dz;
-            } else {
-                tz = z - dz;
-            }
-
-            BlockPos spawnPos = world.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(tx, y, tz));
-            BlockState blockState = world.getBlockState(spawnPos);
-            BlockState blockState2 = world.getBlockState(spawnPos.below());
-            if (!NaturalSpawner.isValidEmptySpawnBlock(world, spawnPos, blockState, blockState.getFluidState(), EntityType.PILLAGER) && blockState2.isValidSpawn(world, spawnPos.below(), EntityType.VILLAGER)) {
-                continue;
-            }
-            if (spawnPillagers(world, pos, spawnPos, random)){
-                return true;
-            }
-            Entity entity = ForgeRegistries.ENTITY_TYPES.tags().getTag(ZombieKitTags.SURVIVORS).getRandomElement(random).get().spawn(world, spawnPos, MobSpawnType.REINFORCEMENT);
-            if (entity instanceof Mob _living){
-                survivorsNeedMove.put(_living, pos);
-            }
-            return true;
-        }
-        return false;
+    public static boolean hasRadio(BlockPos pos, Level world) {
+        return getLevelRadios(world).contains(pos);
     }
 
-    public boolean spawnPillagers(ServerLevel world, BlockPos radioPos, BlockPos spawnPos, RandomSource random){
-        if (world.getDifficulty() != Difficulty.PEACEFUL){
-            if (random.nextDouble() < CommonConfig.ILLAGER_CHANCE.get()){
-                for (int i = 0; i < CommonConfig.ILLAGER_NUMBER.get(); i++){
-                    PatrollingMonster patrollingMonster;
-                    if (random.nextDouble() < CommonConfig.VINDICATOR_CHANCE.get()){
-                        patrollingMonster = EntityType.VINDICATOR.create(world);
-                    }else {
-                        patrollingMonster = EntityType.PILLAGER.create(world);
-                    }
-                    if (i == 0){
-                        patrollingMonster.setPatrolLeader(true);
-                        patrollingMonster.setPatrolTarget(radioPos);
-                    }
-                    patrollingMonster.setPos(spawnPos.getX(), spawnPos.getY(), spawnPos.getZ());
-                    patrollingMonster.finalizeSpawn(world, world.getCurrentDifficultyAt(radioPos), MobSpawnType.PATROL, null, null);
-                    world.addFreshEntityWithPassengers(patrollingMonster);
-                }
-                return true;
-            }
-        }
-        return false;
+    public static Set<BlockPos> getLevelRadios(Level world) {
+        if (!workRadios.containsKey(world))
+            workRadios.put(world, new HashSet<>());
+        return workRadios.get(world);
     }
 
-    public void moveSurvivors(){
-        if (!survivorsNeedMove.isEmpty()){
-            for(Map.Entry<Mob, BlockPos> survivor : survivorsNeedMove.entrySet()){
-                int x = survivor.getValue().getX();
-                int y = survivor.getValue().getY();
-                int z = survivor.getValue().getZ();
-                Mob mob = survivor.getKey();
-                mob.getNavigation().moveTo(x, y, z, 0.8);
-            }
-            survivorsNeedMove.clear();
-        }
-    }
+
 
     @Override
     public void neighborChanged(BlockState blockstate, Level world, BlockPos pos, Block block, BlockPos blockPos2, boolean bl) {
         boolean bl2 = world.hasNeighborSignal(pos) || world.hasNeighborSignal(pos.above());
         if (!bl2 && blockstate.getValue(TURN_ON)){
             removeRadio(pos, world);
-            if (blockstate.getValue(TIME) == 0){
-                world.setBlock(pos, blockstate.setValue(TURN_ON, false).setValue(TIME, 1), 3);
-            }else {
-                world.setBlock(pos, blockstate.setValue(TURN_ON, false).setValue(TIME, 0), 3);
-            }
+            if (world.getBlockEntity(pos) instanceof ShortwaveRadioBlockEntity blockEntity)
+                blockEntity.clearTime();
+            world.setBlock(pos, blockstate.setValue(TURN_ON, false), 3);
         }else if (bl2 && !blockstate.getValue(TURN_ON)){
             addRadio(pos, world);
             world.setBlock(pos, blockstate.setValue(TURN_ON, true), 3);
-            world.playSound(null, pos, ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation("zombiekit:radio_static")), SoundSource.BLOCKS, 1, 1);
+            world.playSound(null, pos, ZombieKitSounds.radio_static.get(), SoundSource.BLOCKS, 1, 1);
         }
     }
 
@@ -285,8 +198,8 @@ public class ShortwaveRadioBlock extends Block {
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING);
-        builder.add(TIME);
         builder.add(TURN_ON);
+        builder.add(TIME);
     }
 
     @Override
@@ -316,6 +229,17 @@ public class ShortwaveRadioBlock extends Block {
     @Override
     public int getLightBlock(BlockState state, BlockGetter worldIn, BlockPos pos) {
         return 0;
+    }
+
+    @Nullable
+    protected static <T extends BlockEntity> BlockEntityTicker<T> createShortwaveRadioTicker(Level level, BlockEntityType<T> blockEntityType1, BlockEntityType<? extends ShortwaveRadioBlockEntity> blockEntityType2) {
+        return level.isClientSide ? null : createTickerHelper(blockEntityType1, blockEntityType2, ShortwaveRadioBlockEntity::serverTick);
+    }
+
+    @Override
+    @Nullable
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState blockState, BlockEntityType<T> blockEntityType) {
+        return createShortwaveRadioTicker(level, blockEntityType, (BlockEntityType<ShortwaveRadioBlockEntity>) ZombieKitBlockEntities.SHORTWAVE_RADIO.get());
     }
 }
 

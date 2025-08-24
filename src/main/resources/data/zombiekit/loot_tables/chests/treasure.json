@@ -234,6 +234,17 @@
           "weight": 1
         },
         {
+          "type": "item",
+          "name": "zombiekit:aokinao",
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ],
+          "weight": 1
+        },
+        {
           "type": "minecraft:loot_table",
           "weight": 1,
           "name": "zombiekit:chests/scarasol_kyoko"

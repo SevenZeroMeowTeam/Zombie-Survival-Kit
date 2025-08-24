@@ -2,7 +2,7 @@
   "name": "鞭炮",
   "icon": "zombiekit:firecracker",
   "category": "zombiekit:projectile",
-  "sortnum": 5,
+  "sortnum": 6,
   "pages": [
     {
       "type": "patchouli:spotlight",

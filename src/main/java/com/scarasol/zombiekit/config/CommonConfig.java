@@ -48,9 +48,16 @@ public class CommonConfig {
     public static final ForgeConfigSpec.ConfigValue<Double> WRENCH_DAMAGE;
     public static final ForgeConfigSpec.ConfigValue<Integer> WRENCH_COOLDOWN;
 
+    public static final ForgeConfigSpec.ConfigValue<Integer> FUEL_DAMAGE;
+    public static final ForgeConfigSpec.ConfigValue<Integer> NAPALM_FUEL_DAMAGE;
+    public static final ForgeConfigSpec.ConfigValue<Integer> HIGH_TEMPERATURE_FUEL_DAMAGE;
+    public static final ForgeConfigSpec.ConfigValue<Double> FUEL_CONSUME;
+
     public static final ForgeConfigSpec.ConfigValue<Boolean> FLY_FUNCTION;
     public static final ForgeConfigSpec.ConfigValue<Integer> EXO_HUD_WIDTH;
     public static final ForgeConfigSpec.ConfigValue<Integer> EXO_HUD_HEIGHT;
+
+    public static final ForgeConfigSpec.ConfigValue<Double> DAMAGE_COEFFICIENT;
 
     public static final ForgeConfigSpec.ConfigValue<Boolean> SWEEP;
     public static final ForgeConfigSpec.ConfigValue<Double> SWEEP_MULTIPLIER;
@@ -90,6 +97,12 @@ public class CommonConfig {
 
     public static final ForgeConfigSpec.ConfigValue<Boolean> HIGH_PERFORMANCE_MODE;
     public static final ForgeConfigSpec.ConfigValue<Integer> LAMP_POWER;
+
+    public static final ForgeConfigSpec.ConfigValue<Boolean> MORTAR_BREAK_BLOCK;
+    public static final ForgeConfigSpec.ConfigValue<Integer> MORTAR_EXPLOSION_LEVEL;
+    public static final ForgeConfigSpec.ConfigValue<Integer> NAPALM_DAMAGE;
+    public static final ForgeConfigSpec.ConfigValue<Integer> NAPALM_BURN_TIME;
+    public static final ForgeConfigSpec.ConfigValue<Integer> NAPALM_RANGE;
 
     public static final ForgeConfigSpec.ConfigValue<Boolean> RAIDER_INDEPENDENCE;
     public static final ForgeConfigSpec.ConfigValue<List<String>> ILLAGER_WHITELIST;
@@ -146,15 +159,26 @@ public class CommonConfig {
         NETHERITE_RAKE_DAMAGE = BUILDER.defineInRange("Netherite Rake Damage", 15.0, 1, 5000);
         RAKE_SPEED = BUILDER.defineInRange("Rake Speed", 1.0, 0.0, 8.0);
         RAKE_RANGE_INCREASE = BUILDER.comment("Increased attack distance for rakes.")
-                .defineInRange("Rake Attack Range", 1.0, 0.0, 5000);
+                .defineInRange("Rake Attack Range", 0.25, 0.0, 1.0);
         NETHERITE_RAKE_RANGE_INCREASE = BUILDER.comment("Increased attack distance for netherite rakes.")
-                .defineInRange("Netherite Rake Attack Range", 2.0, 0.0, 5000);
+                .defineInRange("Netherite Rake Attack Range", 0.5, 0.0, 1.0);
         BUILDER.pop();
 
         BUILDER.push("Wrench");
         WRENCH_DAMAGE = BUILDER.defineInRange("Wrench Damage", 9.0, 1, 5000);
         WRENCH_COOLDOWN = BUILDER.comment("Cooldown on wrench power-up throws.")
                 .defineInRange("Wrench Cooldown (Second)", 7, 1, Integer.MAX_VALUE);
+        BUILDER.pop();
+
+        BUILDER.push("Flamethrower");
+        FUEL_DAMAGE = BUILDER.comment("The damage of flamethrower with fuel canister.")
+                .defineInRange("Fuel Damage", 5, 1, 5000);
+        NAPALM_FUEL_DAMAGE = BUILDER.comment("The damage of flamethrower with napalm fuel canister.")
+                .defineInRange("Napalm Fuel Damage", 7, 1, 5000);
+        HIGH_TEMPERATURE_FUEL_DAMAGE = BUILDER.comment("The damage of flamethrower with high temperature fuel canister.")
+                .defineInRange("High Temperature Fuel Damage", 10, 1, 5000);
+        FUEL_CONSUME = BUILDER.comment("Fuel consumed per tick.(total fuel amount is 10000)")
+                .defineInRange("Fuel Consumption Rate", 2.5, 1, 10000);
         BUILDER.pop();
 
         BUILDER.push("EXO suit");
@@ -164,6 +188,11 @@ public class CommonConfig {
                 .defineInRange("X offset", 120, 0, 2048);
         EXO_HUD_HEIGHT = BUILDER.comment("Y offset of exo suit HUD")
                 .defineInRange("Y offset", 90, 0, 2048);
+        BUILDER.pop();
+
+        BUILDER.push("Parts");
+        DAMAGE_COEFFICIENT = BUILDER.comment("damage coefficient of parts")
+                .defineInRange("Damage Coefficient", 1.0, 0, 5000);
         BUILDER.pop();
 
         BUILDER.push("Misc");
@@ -277,6 +306,20 @@ public class CommonConfig {
         LAMP_POWER = BUILDER.comment("When the lamp is running after how many ticks the power consumption is 1%." +
                 "\n1 sec = 20 ticks")
                 .defineInRange("Lamp Power", 120, 1, 5000);
+        BUILDER.pop();
+
+        BUILDER.push("Mortar");
+        MORTAR_BREAK_BLOCK = BUILDER.comment("Whether the mortar shell can break block.")
+                .define("Mortar Shell Destruction", false);
+        MORTAR_EXPLOSION_LEVEL = BUILDER.comment("Explosion level of the mortar shell.")
+                .defineInRange("Mortar Shell Explosion Level", 5, 1, 50);
+        NAPALM_DAMAGE = BUILDER.comment("Damage of the napalm mortar shell.")
+                .defineInRange("Napalm Shell Damage", 20, 1, 5000);
+        NAPALM_BURN_TIME = BUILDER.comment("Burn duration in seconds on LivingEntity caused by the napalm mortar shell. Burning deals 4 damage per second.")
+                .defineInRange("Napalm burn duration", 20, 0, 5000);
+        NAPALM_RANGE = BUILDER.comment("Radius of the napalm mortar shell.")
+                .defineInRange("Napalm Radius", 10, 1, 50);
+
         BUILDER.pop();
 
         BUILDER.push("Misc");

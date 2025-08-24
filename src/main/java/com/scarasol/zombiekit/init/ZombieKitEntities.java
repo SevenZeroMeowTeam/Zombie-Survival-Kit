@@ -3,6 +3,7 @@ package com.scarasol.zombiekit.init;
 import com.scarasol.zombiekit.ZombieKitMod;
 import com.scarasol.zombiekit.entity.mechanics.DroneEntity;
 import com.scarasol.zombiekit.entity.mechanics.HeavyMachineGunEntity;
+import com.scarasol.zombiekit.entity.mechanics.MortarEntity;
 import com.scarasol.zombiekit.entity.mechanics.UvLampEntity;
 import com.scarasol.zombiekit.entity.projectile.*;
 import net.minecraft.world.entity.Entity;
@@ -30,18 +31,24 @@ public class ZombieKitEntities {
             .setCustomClientFactory(FirecrackerEntity::new).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(1).sized(0.5f, 0.5f));
     public static final RegistryObject<EntityType<WrenchEntity>> WRENCH = register("wrench", EntityType.Builder.<WrenchEntity>of(WrenchEntity::new, MobCategory.MISC)
             .setCustomClientFactory(WrenchEntity::new).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(1).sized(0.5f, 0.5f));
+    public static final RegistryObject<EntityType<MortarShellEntity>> MORTAR_SHELL = register("mortar_shell", EntityType.Builder.<MortarShellEntity>of(MortarShellEntity::new, MobCategory.MISC)
+            .setCustomClientFactory(MortarShellEntity::new).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(1).sized(0.6f, 1.5f));
+    public static final RegistryObject<EntityType<LandmineEntity>> LANDMINE = register("landmine", EntityType.Builder.<LandmineEntity>of(LandmineEntity::new, MobCategory.MISC)
+            .setCustomClientFactory(LandmineEntity::new).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(1).sized(0.5f, 0.5f));
     public static final RegistryObject<EntityType<FlareGunEntity>> FLARE_GUN = register("flare_gun",
             EntityType.Builder.<FlareGunEntity>of(FlareGunEntity::new, MobCategory.MISC).setCustomClientFactory(FlareGunEntity::new).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(1).sized(0.5f, 0.5f));
     public static final RegistryObject<EntityType<FlaresEntity>> FLARES = register("flares", EntityType.Builder.<FlaresEntity>of(FlaresEntity::new, MobCategory.MISC)
             .setCustomClientFactory(FlaresEntity::new).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(1).sized(0.5f, 0.5f));
     public static final RegistryObject<EntityType<DroneEntity>> DRONE = register("drone",
-            EntityType.Builder.<DroneEntity>of(DroneEntity::new, MobCategory.MONSTER).setShouldReceiveVelocityUpdates(true).setTrackingRange(25).setUpdateInterval(3).setCustomClientFactory(DroneEntity::new).sized(0.6f, 0.4f));
+            EntityType.Builder.<DroneEntity>of(DroneEntity::new, MobCategory.MISC).setShouldReceiveVelocityUpdates(true).setTrackingRange(25).setUpdateInterval(3).setCustomClientFactory(DroneEntity::new).sized(0.6f, 0.4f));
     public static final RegistryObject<EntityType<HeavyMachineGunAmmoEntity>> HEAVY_MACHINE_GUN_AMMO = register("heavy_machine_gun_ammo", EntityType.Builder.<HeavyMachineGunAmmoEntity>of(HeavyMachineGunAmmoEntity::new, MobCategory.MISC)
             .setCustomClientFactory(HeavyMachineGunAmmoEntity::new).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(1).sized(0.5f, 0.5f));
     public static final RegistryObject<EntityType<HeavyMachineGunEntity>> HEAVY_MACHINE_GUN = register("heavy_machine_gun",
-            EntityType.Builder.<HeavyMachineGunEntity>of(HeavyMachineGunEntity::new, MobCategory.MONSTER).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(3).setCustomClientFactory(HeavyMachineGunEntity::new).sized(0.8f, 1f));
+            EntityType.Builder.<HeavyMachineGunEntity>of(HeavyMachineGunEntity::new, MobCategory.MISC).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(3).setCustomClientFactory(HeavyMachineGunEntity::new).sized(0.8f, 1f));
     public static final RegistryObject<EntityType<UvLampEntity>> UV_LAMP = register("uv_lamp",
-            EntityType.Builder.<UvLampEntity>of(UvLampEntity::new, MobCategory.MONSTER).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(3).setCustomClientFactory(UvLampEntity::new));
+            EntityType.Builder.<UvLampEntity>of(UvLampEntity::new, MobCategory.MISC).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(3).setCustomClientFactory(UvLampEntity::new));
+    public static final RegistryObject<EntityType<MortarEntity>> MORTAR = register("mortar",
+            EntityType.Builder.<MortarEntity>of(MortarEntity::new, MobCategory.MISC).setShouldReceiveVelocityUpdates(true).setTrackingRange(64).setUpdateInterval(3).setCustomClientFactory(MortarEntity::new).sized(1.5f, 1.5f));
 
 
 
@@ -67,6 +74,7 @@ public class ZombieKitEntities {
         event.put(UV_LAMP.get(), UvLampEntity.createAttributes().build());
         event.put(DRONE.get(), DroneEntity.createAttributes().build());
         event.put(HEAVY_MACHINE_GUN.get(), HeavyMachineGunEntity.createAttributes().build());
+        event.put(MORTAR.get(), MortarEntity.createAttributes().build());
     }
 
 

@@ -32,6 +32,7 @@ public class SkiingArmor extends ArmorItem {
 
     @Override
     public void onInventoryTick(ItemStack itemStack, Level level, Player player, int slotIndex, int selectedIndex){
+        super.onInventoryTick(itemStack, level, player, slotIndex, selectedIndex);
         if (getEquipmentSlot() == EquipmentSlot.HEAD && Iterables.contains(player.getArmorSlots(), itemStack)){
             player.removeEffect(MobEffects.BLINDNESS);
         }

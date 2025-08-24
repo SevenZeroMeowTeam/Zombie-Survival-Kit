@@ -1,11 +1,19 @@
 package com.scarasol.zombiekit.entity.mechanics;
 
 import com.scarasol.sona.init.SonaMobEffects;
+import com.scarasol.sona.util.SonaMath;
+import com.scarasol.zombiekit.ZombieKitMod;
+import com.scarasol.zombiekit.api.FixedVehicle;
 import com.scarasol.zombiekit.entity.projectile.HeavyMachineGunAmmoEntity;
 import com.scarasol.zombiekit.init.ZombieKitEntities;
 import com.scarasol.zombiekit.init.ZombieKitItems;
+import com.scarasol.zombiekit.init.ZombieKitSounds;
 import com.scarasol.zombiekit.init.ZombieKitTags;
+import com.scarasol.zombiekit.item.weapon.Flamethrower;
+import net.minecraft.client.CameraType;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -35,12 +43,16 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.network.PlayMessages;
 import net.minecraftforge.registries.ForgeRegistries;
 import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.GeoItem;
+import software.bernie.geckolib.animatable.SingletonGeoAnimatable;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -53,18 +65,19 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 import java.util.List;
 import java.util.UUID;
 
-public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
+public class HeavyMachineGunEntity extends Mechanics implements GeoEntity, FixedVehicle {
     public static final EntityDataAccessor<Boolean> SHOOT = SynchedEntityData.defineId(HeavyMachineGunEntity.class, EntityDataSerializers.BOOLEAN);
     public static final EntityDataAccessor<Boolean> OVERLOAD = SynchedEntityData.defineId(HeavyMachineGunEntity.class, EntityDataSerializers.BOOLEAN);
-    public static final EntityDataAccessor<String> ANIMATION = SynchedEntityData.defineId(HeavyMachineGunEntity.class, EntityDataSerializers.STRING);
     public static final EntityDataAccessor<String> TEXTURE = SynchedEntityData.defineId(HeavyMachineGunEntity.class, EntityDataSerializers.STRING);
-    public static final EntityDataAccessor<String> DIRECTION = SynchedEntityData.defineId(HeavyMachineGunEntity.class, EntityDataSerializers.STRING);
     public static final AttributeModifier ATTRIBUTE_MODIFIER = new AttributeModifier(UUID.fromString("1CCA8D2D-9A0B-3FF2-E505-EF4A439570C3"), "machine_gun", 20, AttributeModifier.Operation.ADDITION);
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
-    public String animationprocedure = "empty";
+    private static final RawAnimation SHOOT_ANI = RawAnimation.begin().thenPlay("shoot");
+    private static final RawAnimation IDLE_ANI = RawAnimation.begin().thenLoop("idle");
     private boolean init;
     private double temperature = 0;
     private int cloudTime;
+    private boolean fire;
+    private int coolDownTime;
 
     public HeavyMachineGunEntity(PlayMessages.SpawnEntity packet, Level world) {
         this(ZombieKitEntities.HEAVY_MACHINE_GUN.get(), world);
@@ -74,29 +87,44 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
         super(type, world);
         xpReward = 0;
         setPersistenceRequired();
-
+        SingletonGeoAnimatable.registerSyncedAnimatable(this);
     }
 
     @Override
     public void tick() {
         super.tick();
         heat();
-        if (this.getVehicle() == null || this.getVehicle() instanceof Minecart){
-            setYBodyRot(getGunDirection().getAngle());
-            yBodyRotO = getGunDirection().getAngle();
+        if (this.getVehicle() == null) {
+            setYBodyRot(yBodyRotO);
+        } else if (this.getVehicle() instanceof LivingEntity livingEntity) {
+            setYBodyRot(livingEntity.yBodyRot);
+            yBodyRotO = livingEntity.yBodyRot;
         }
         List<Entity> passengers = getPassengers();
-        if (passengers.size() != 0 && passengers.get(0) instanceof LivingEntity passenger){
+        if (passengers.size() != 0 && passengers.get(0) instanceof LivingEntity passenger) {
             turnGunpoint(passenger);
-        }else {
-            if (this.level() instanceof ServerLevel serverLevel){
-                if (!this.init){
+            if (passenger instanceof Player player && fire) {
+                if (coolDownTime++ % 4 == 0) {
+                    if (checkCanFire(player)) {
+                        fire();
+                    } else if (!level().isClientSide())
+                        level().playSound(null, player.getX(), player.getY(), player.getZ(), ZombieKitSounds.heavy_machine_gun_trigger.get(), SoundSource.BLOCKS, 1, 1);
+                }
+            } else {
+                coolDownTime = 0;
+            }
+        } else {
+            if (this.level() instanceof ServerLevel serverLevel) {
+                if (!this.init) {
                     StructureManager structureFeatureManager = serverLevel.structureManager();
                     Structure configuredStructureFeature = structureFeatureManager.registryAccess().registryOrThrow(Registries.STRUCTURE).get(ZombieKitTags.STRUCTURE);
-                    if (configuredStructureFeature != null && structureFeatureManager.getStructureAt(BlockPos.containing(this.getX(), this.getY(), this.getZ()), configuredStructureFeature).isValid()){
+                    if (configuredStructureFeature != null && structureFeatureManager.getStructureAt(BlockPos.containing(this.getX(), this.getY(), this.getZ()), configuredStructureFeature).isValid()) {
                         BlockState state = serverLevel.getBlockState(BlockPos.containing(this.getX(), this.getY(), this.getZ()).below());
-                        if (state.getBlock().getStateDefinition().getProperty("facing") instanceof EnumProperty facing){
-                            setDirection(state.getValue(facing).toString());
+                        if (state.getBlock().getStateDefinition().getProperty("facing") instanceof EnumProperty) {
+                            GunDirection direction = GunDirection.getDirection(state.getBlock().getStateDefinition().getProperty("facing").toString().toUpperCase());
+                            setYBodyRot(direction.getAngle());
+                            yBodyRotO = direction.getAngle();
+                            setYHeadRot(direction.getAngle());
                         }
                     }
                     init = true;
@@ -106,35 +134,50 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
         }
     }
 
-    public void heat(){
-        if (getOverload()){
+    public boolean isFire() {
+        return fire;
+    }
+
+    public void setFire(boolean fire) {
+        this.fire = fire;
+    }
+
+    public boolean checkCanFire(Player player) {
+        if (getOverload())
+            return false;
+        if (player.isCreative())
+            return true;
+        List<ItemStack> ammo = player.getInventory().items.stream()
+                .filter((itemStack) -> itemStack.is(ZombieKitTags.MACHINE_GUN_AMMO)).toList();
+        if (!ammo.isEmpty()) {
+            if (!level().isClientSide())
+                ammo.get(0).shrink(1);
+            return true;
+        }
+        return false;
+    }
+
+    public void heat() {
+        if (getOverload()) {
             this.temperature = Math.max(temperature - 0.05, 0);
-            if (temperature < 50){
+            if (temperature < 50) {
                 this.setOverload(false);
             }
-        }else {
+        } else {
             this.temperature = Math.max(temperature - 0.1, 0);
         }
         cloudTime = (cloudTime + 1) % 10;
-        if (this.temperature > 50 && this.cloudTime % 10 == 0 && this.level() instanceof ServerLevel server){
-            steam(server);
+        Vec3 angle = this.getViewVector(1);
+        if (this.temperature > 50 && this.cloudTime % 10 == 0 && this.level() instanceof ServerLevel server) {
+            server.sendParticles(ParticleTypes.CLOUD, getX() + angle.x, getY() + 1.5, getZ() + angle.z, 0, 0, 2, 0, 0.1);
             return;
         }
-        if (this.temperature > 75 && this.cloudTime % 5 == 0 && this.level() instanceof ServerLevel server){
-            steam(server);
-            if (temperature > 99){
-                this.level().playSound(null, getX(), getY(), getZ(), ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation("zombiekit:heavy_machine_gun_overload")), SoundSource.BLOCKS, 1, 1);
+        if (this.temperature > 75 && this.cloudTime % 5 == 0 && this.level() instanceof ServerLevel server) {
+            server.sendParticles(ParticleTypes.CLOUD, getX() + angle.x, getY() + 1.5, getZ() + angle.z, 0, 0, 2, 0, 0.1);
+            if (temperature > 99) {
+                this.level().playSound(null, getX(), getY(), getZ(), ZombieKitSounds.heavy_machine_gun_overload.get(), SoundSource.BLOCKS, 1, 1);
                 this.setOverload(true);
             }
-        }
-    }
-
-    public void steam(ServerLevel server){
-        switch (getGunDirection()) {
-            case NORTH -> server.sendParticles(ParticleTypes.CLOUD, getX(), getY() + 1.5, getZ() - 1, 0, 0, 2, 0, 0.1);
-            case SOUTH -> server.sendParticles(ParticleTypes.CLOUD, getX(), getY() + 1.5, getZ() + 1, 0, 0, 2, 0, 0.1);
-            case EAST -> server.sendParticles(ParticleTypes.CLOUD, getX() + 1, getY() + 1.5, getZ(), 0, 0, 2, 0, 0.1);
-            case WEST -> server.sendParticles(ParticleTypes.CLOUD, getX() - 1, getY() + 1.5, getZ(), 0, 0, 2, 0, 0.1);
         }
     }
 
@@ -147,9 +190,6 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
         if (compoundTag.contains("Overload")) {
             this.setOverload(compoundTag.getBoolean("Overload"));
         }
-        if (compoundTag.contains("Direction")) {
-            this.setDirection(compoundTag.getString("Direction"));
-        }
     }
 
     @Override
@@ -157,84 +197,25 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
         super.addAdditionalSaveData(compoundTag);
         compoundTag.putDouble("Temperature", this.temperature);
         compoundTag.putBoolean("Overload", this.getOverload());
-        if (this.getGunDirection() != null) {
-            compoundTag.putString("Direction", this.getGunDirection().toString());
-        }
     }
 
-    public void turnGunpoint(LivingEntity passenger){
-        float y;
-        if (passenger instanceof Player){
-            y = passenger.getYRot();
-        }else {
-            y = passenger.getYHeadRot();
+    public void turnGunpoint(LivingEntity passenger) {
+        Vec3 passengerViewer = passenger.getViewVector(1);
+        Vec3 horizontalVec = new Vec3(-Mth.sin(-yBodyRot * ((float) Math.PI / 180F) - (float) Math.PI), 0, -Mth.cos(-yBodyRot * ((float) Math.PI / 180F) - (float) Math.PI)).normalize();
+        Vec3 horizontalViewer = new Vec3(passengerViewer.x, 0, passengerViewer.z).normalize();
+        passenger.setYBodyRot(yBodyRot);
+        if (SonaMath.vectorDegreeCalculate(horizontalVec, horizontalViewer) <= 60.01) {
+            float y = passenger instanceof Player ? passenger.getYRot() : passenger.getYHeadRot();
+            setYRot(y);
+            setYHeadRot(getYRot());
         }
         float x = passenger.getXRot();
-        float angle;
-        if (this.getVehicle() == null || this.getVehicle() instanceof Minecart){
-            angle = getGunDirection().getAngle();
-        }else {
-            angle = this.yBodyRot;
-        }
-
-        while (angle > 180) {
-            angle -= 360;
-        }
-        while (angle <= -180) {
-            angle += 360;
-        }
-        if (angle >= 120f || angle <= -120f){
-            while (y > 360) {
-                y -= 360;
-            }
-            while (y < 0) {
-                y += 360;
-            }
-            while (angle <= -120) {
-                angle += 360;
-            }
-        }else {
-            while (y > 180) {
-                y -= 360;
-            }
-            while (y <= -180) {
-                y += 360;
-            }
-
-        }
-        if (y - angle > 60){
-            setYRot(angle + 60);
-            passenger.setYRot(angle + 60);
-            passenger.setYHeadRot(passenger.getYRot());
-            passenger.yRotO = passenger.getYRot();
-            passenger.yHeadRotO = passenger.getYRot();
-        }else if (angle - y > 60){
-            setYRot(angle - 60);
-            passenger.setYRot(angle - 60);
-            passenger.setYHeadRot(passenger.getYRot());
-            passenger.yRotO = passenger.getYRot();
-            passenger.yHeadRotO = passenger.getYRot();
-        }else {
-            setYRot(y);
-        }
-        if (x > 30){
-            setXRot(30);
-            passenger.setXRot(30);
-            passenger.xRotO = passenger.getXRot();
-        }else if (x < -50){
-            setXRot(-50);
-            passenger.setXRot(-50);
-            passenger.xRotO = passenger.getXRot();
-        }else {
+        if (x <= 30 && x >= -50) {
             setXRot(x);
         }
-        setYHeadRot(getYRot());
-        xRotO = getXRot();
-        yRotO = getYRot();
-        yHeadRotO = getYRot();
     }
 
-    public void tryMakeMobRide(){
+    public void tryMakeMobRide() {
         List<LivingEntity> list = this.level().getNearbyEntities(LivingEntity.class, TargetingConditions.forNonCombat().range(5.0), this, this.getBoundingBox().inflate(2.0, 2.0, 2.0));
         if (!list.isEmpty()) {
             list.sort((l1, l2) -> {
@@ -243,9 +224,12 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
                 return Double.compare(a, b);
             });
             for (LivingEntity entity : list) {
-                if (entity instanceof Mob mob && entity.getType().is(ZombieKitTags.MACHINE_GUNNER)){
-                    if (!mob.isNoAi() && mob.getVehicle() == null){
+                if (entity instanceof Mob mob && entity.getType().is(ZombieKitTags.MACHINE_GUNNER)) {
+                    if (!mob.isNoAi() && mob.getVehicle() == null) {
                         mob.startRiding(this);
+                        mob.setYRot(yBodyRot);
+                        mob.setYHeadRot(yBodyRot);
+                        mob.setYBodyRot(yBodyRot);
                         AttributeInstance attributeInstance = mob.getAttributes().getInstance(Attributes.FOLLOW_RANGE);
                         if (attributeInstance == null) continue;
                         attributeInstance.removeModifier(ATTRIBUTE_MODIFIER);
@@ -258,64 +242,38 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
         }
     }
 
-    public void setDirection(String direction){
-        this.entityData.set(DIRECTION, direction.toUpperCase());
-    }
-
-    public Direction getGunDirection(){
-        return Direction.valueOf(this.entityData.get(DIRECTION));
-    }
 
     public void fire() {
-        if (!this.getOverload()){
-            List<Entity> passengers = getPassengers();
-            if (passengers.size() != 0 && passengers.get(0) instanceof LivingEntity owner){
-                HeavyMachineGunAmmoEntity ammo = new HeavyMachineGunAmmoEntity(ZombieKitEntities.HEAVY_MACHINE_GUN_AMMO.get(), this.level());
-                ammo.setOwner(owner);
-                ammo.setPos(owner.getX(), owner.getEyeY(), owner.getZ());
-                ammo.shoot(this.level(), owner, this.level().getRandom(), 2.5f, 0, 0);
+        List<Entity> passengers = getPassengers();
+        if (passengers.size() != 0 && passengers.get(0) instanceof LivingEntity owner) {
+            owner.addEffect(new MobEffectInstance(SonaMobEffects.EXPOSURE.get(), 20, 3, false, false));
+            if (!this.level().isClientSide) {
+                HeavyMachineGunAmmoEntity.shoot(this.level(), owner, 8f, 0, 0);
+                this.level().playSound(null, getX(), getY(), getZ(), ZombieKitSounds.heavy_machine_gun_fire.get(), SoundSource.BLOCKS, 4, 1);
                 if (!(this.hasEffect(SonaMobEffects.FROST.get()) || this.isFreezing()))
                     this.temperature = Math.min(temperature + 0.9, 100);
-                if (passengers.get(0) instanceof Player player){
-                    player.setYRot(player.getYRot() + Mth.nextFloat(this.level().getRandom(), -1.2f, 1.2f));
-                    player.setXRot(player.getXRot() + Mth.nextFloat(this.level().getRandom(), -2, 0));
-                    player.setYHeadRot(player.getYRot());
-                    player.xRotO = player.getXRot();
-                    player.yRotO = player.getYRot();
-                    player.yHeadRotO = player.getYRot();
-                }
             }
-            setAnimation("shoot");
-        }else {
-            this.level().playSound(null, getX(), getY(), getZ(), ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation("zombiekit:heavy_machine_gun_trigger")), SoundSource.BLOCKS, 1, 1);
+            if (passengers.get(0) instanceof Player player) {
+                player.turn(Mth.nextFloat(this.level().getRandom(), -8f, 8f), Mth.nextFloat(this.level().getRandom(), -10, -5));
+            }
         }
-
+        triggerAnim("procedureController", "shoot");
     }
 
     public boolean canSee(Entity livingEntity) {
-        boolean XRange = false;
-        boolean YRange = false;
+        boolean YRange;
         double x = livingEntity.getX();
         double y = livingEntity.getY();
         double z = livingEntity.getZ();
-        switch (getGunDirection()) {
-            case NORTH -> {
-                XRange = (z - this.getZ() < Math.pow(1d / 3d, 0.5) * (x - this.getX()) && z - this.getZ() < -1.0d * Math.pow(1d / 3d, 0.5) * (x - this.getX()));
-                YRange = ((this.getZ() - z) > y - this.getY() && -1.0d * Math.pow(1d / 3d, 0.5) * (this.getZ() - z) < y - this.getY());
-            }
-            case SOUTH -> {
-                XRange = (z - this.getZ() > Math.pow(1d / 3d, 0.5) * (x - this.getX()) && z - this.getZ() > -1.0d * Math.pow(1d / 3d, 0.5) * (x - this.getX()));
-                YRange = ((z - this.getZ()) > y - this.getY() && -1.0d * Math.pow(1d / 3d, 0.5) * (z - this.getZ()) < y - this.getY());
-            }
-            case EAST -> {
-                XRange = (x - this.getX() > Math.pow(1d / 3d, 0.5) * (z - this.getZ()) && x - this.getX() > -1.0d * Math.pow(1d / 3d, 0.5) * (z - this.getZ()));
-                YRange = ((x - this.getX()) > y - this.getY() && -1.0d * Math.pow(1d / 3d, 0.5) * (x - this.getX()) < y - this.getY());
-            }
-            case WEST -> {
-                XRange = (x - this.getX() < Math.pow(1d / 3d, 0.5) * (z - this.getZ()) && x - this.getX() < -1.0d * Math.pow(1d / 3d, 0.5) * (z - this.getZ()));
-                YRange = ((this.getX() - x) > y - this.getY() && -1.0d * Math.pow(1d / 3d, 0.5) * (this.getX() - x) < y - this.getY());
-            }
-        }
+        Vec3 horizontalVec = new Vec3(-Mth.sin(-yBodyRot * ((float) Math.PI / 180F) - (float) Math.PI), 0, -Mth.cos(-yBodyRot * ((float) Math.PI / 180F) - (float) Math.PI));
+        Vec3 horizontalDis = new Vec3(x - getX(), 0, z - getZ());
+        boolean XRange = SonaMath.vectorDegreeCalculate(horizontalVec, horizontalDis) < 60;
+        if (y > getY())
+            YRange = Math.toDegrees(Math.atan((y - getY()) / horizontalDis.length())) < 30;
+        else if (y < getY())
+            YRange = Math.toDegrees(Math.atan((getY() - y) / horizontalDis.length())) < 50;
+        else
+            YRange = true;
         return XRange && YRange;
     }
 
@@ -324,9 +282,7 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
         super.defineSynchedData();
         this.entityData.define(SHOOT, false);
         this.entityData.define(OVERLOAD, false);
-        this.entityData.define(ANIMATION, "undefined");
         this.entityData.define(TEXTURE, "m2_machine_gun");
-        this.entityData.define(DIRECTION, "NORTH");
     }
 
     public void setTexture(String texture) {
@@ -374,26 +330,36 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
         ItemStack itemstack = sourceentity.getItemInHand(hand);
         InteractionResult retval = InteractionResult.sidedSuccess(this.level().isClientSide());
         super.mobInteract(sourceentity, hand);
-        if (itemstack.is(ZombieKitItems.WRENCH.get())){
-            if (sourceentity.isShiftKeyDown()){
-                ItemEntity entityToSpawn = new ItemEntity(this.level(), getX(), getY(), getZ(), new ItemStack(ZombieKitItems.HEAVY_MACHINE_GUN_SUMMON.get()));
-                entityToSpawn.setPickUpDelay(10);
-                this.level().addFreshEntity(entityToSpawn);
-                this.discard();
-            }else if (!this.isNoAi()){
-                this.setNoAi(true);
-                this.level().playSound(null, getX(), getY(), getZ(), ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation("zombiekit:heavy_machine_gun_deploy")), SoundSource.BLOCKS, 1, 1);
-            }
-        }else if(itemstack.is(Items.POWDER_SNOW_BUCKET)){
+        if (itemstack.is(ZombieKitItems.WRENCH.get())) {
+            ItemEntity entityToSpawn = new ItemEntity(this.level(), getX(), getY(), getZ(), new ItemStack(ZombieKitItems.HEAVY_MACHINE_GUN_SUMMON.get()));
+            entityToSpawn.setPickUpDelay(10);
+            this.level().addFreshEntity(entityToSpawn);
+            this.discard();
+        } else if (itemstack.is(Items.POWDER_SNOW_BUCKET)) {
             this.addEffect(new MobEffectInstance(SonaMobEffects.FROST.get(), 1200, 0));
-            if (!sourceentity.getAbilities().instabuild){
+            if (!sourceentity.getAbilities().instabuild) {
                 ItemStack setstack = new ItemStack(Items.BUCKET);
                 setstack.setCount(1);
                 ItemHandlerHelper.giveItemToPlayer(sourceentity, setstack);
                 itemstack.setCount(itemstack.getCount() - 1);
             }
-        }else {
-            sourceentity.startRiding(this);
+        } else {
+            if (!sourceentity.isShiftKeyDown()) {
+                sourceentity.startRiding(this);
+                sourceentity.setYBodyRot(yBodyRot);
+                sourceentity.setYRot(yBodyRot);
+                sourceentity.setYHeadRot(yBodyRot);
+                sourceentity.setXRot(0);
+            } else {
+                setYBodyRot(sourceentity.getYRot());
+                setYHeadRot(sourceentity.getYRot());
+                setYRot(sourceentity.getYRot());
+                if (!this.getPassengers().isEmpty()) {
+                    this.getPassengers().get(0).setYBodyRot(sourceentity.getYRot());
+                    this.getPassengers().get(0).setYHeadRot(sourceentity.getYRot());
+                }
+
+            }
         }
 
         return retval;
@@ -434,22 +400,12 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
         return builder;
     }
 
-    private PlayState movementPredicate(AnimationState event) {
-        if (this.animationprocedure.equals("empty")) {
-            return event.setAndContinue(RawAnimation.begin().thenLoop("idle"));
-        }
-        return PlayState.STOP;
-    }
-
     private PlayState procedurePredicate(AnimationState event) {
-        if (!animationprocedure.equals("empty") && event.getController().getAnimationState() == AnimationController.State.STOPPED) {
-            event.getController().setAnimation(RawAnimation.begin().thenPlay(this.animationprocedure));
-            if (event.getController().getAnimationState() == AnimationController.State.STOPPED) {
-                this.animationprocedure = "empty";
-                event.getController().forceAnimationReset();
+        AnimationController<Flamethrower> controller = event.getController();
+        if (!controller.isPlayingTriggeredAnimation()) {
+            if (controller.getCurrentRawAnimation() == null || event.getController().hasAnimationFinished()) {
+                controller.setAnimation(IDLE_ANI);
             }
-        } else if (animationprocedure.equals("empty")) {
-            return PlayState.STOP;
         }
         return PlayState.CONTINUE;
     }
@@ -464,18 +420,11 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
         }
     }
 
-    public String getSyncedAnimation() {
-        return this.entityData.get(ANIMATION);
-    }
-
-    public void setAnimation(String animation) {
-        this.entityData.set(ANIMATION, animation);
-    }
-
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar data) {
-        data.add(new AnimationController<>(this, "movement", 0, this::movementPredicate));
-        data.add(new AnimationController<>(this, "procedure", 0, this::procedurePredicate));
+        data.add(new AnimationController<>(this, "procedureController", 0, this::procedurePredicate)
+                .triggerableAnim("shoot", SHOOT_ANI)
+                .receiveTriggeredAnimations());
     }
 
     @Override
@@ -483,8 +432,26 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
         return this.cache;
     }
 
+    @Override
+    public boolean validXRot(LivingEntity livingEntity, float xRot) {
+        return xRot <= 30 && xRot >= -50;
+    }
 
-    static enum Direction {
+    @Override
+    public boolean validYRot(LivingEntity livingEntity, float yRot) {
+        Vec3 passengerViewer = this.calculateViewVector(livingEntity.getXRot(), yRot);
+        Vec3 horizontalVec = new Vec3(-Mth.sin(-yBodyRot * ((float) Math.PI / 180F) - (float) Math.PI), 0, -Mth.cos(-yBodyRot * ((float) Math.PI / 180F) - (float) Math.PI)).normalize();
+        Vec3 horizontalViewer = new Vec3(passengerViewer.x, 0, passengerViewer.z).normalize();
+        return SonaMath.vectorDegreeCalculate(horizontalVec, horizontalViewer) <= 60;
+    }
+
+    @Override
+    public CameraType getVehicleCameraType() {
+        return CameraType.FIRST_PERSON;
+    }
+
+
+    enum GunDirection {
         NORTH(180f),
         SOUTH(0f),
         WEST(90f),
@@ -492,12 +459,21 @@ public class HeavyMachineGunEntity extends Mechanics implements GeoEntity {
 
         private final float angle;
 
-        private Direction(float angle){
+        GunDirection(float angle) {
             this.angle = angle;
         }
 
-        public float getAngle(){
+        public float getAngle() {
             return this.angle;
+        }
+
+        public static GunDirection getDirection(String facing) {
+            return switch (facing) {
+                case "NORTH" -> NORTH;
+                case "SOUTH" -> SOUTH;
+                case "WEST" -> WEST;
+                default -> EAST;
+            };
         }
     }
 }

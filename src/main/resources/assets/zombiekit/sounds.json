@@ -317,5 +317,61 @@
         "stream": false
       }
     ]
+  },
+  "flamethrower": {
+    "category": "player",
+    "subtitle": "subtitles.flamethrower",
+    "sounds": [
+      {
+        "name": "zombiekit:flamethrower_1",
+        "stream": false
+      },
+      {
+        "name": "zombiekit:flamethrower_2",
+        "stream": false
+      },
+      {
+        "name": "zombiekit:flamethrower_3",
+        "stream": false
+      },
+      {
+        "name": "zombiekit:flamethrower_4",
+        "stream": false
+      },
+      {
+        "name": "zombiekit:flamethrower_5",
+        "stream": false
+      }
+    ]
+  },
+  "flamethrower_reload": {
+    "category": "player",
+    "subtitle": "subtitles.flamethrower_reload",
+    "sounds": [
+      {
+        "name": "zombiekit:flamethrower_reload",
+        "stream": false
+      }
+    ]
+  },
+  "mortar_launch": {
+    "category": "player",
+    "subtitle": "subtitles.mortar_launch",
+    "sounds": [
+      {
+        "name": "zombiekit:mortar_launch",
+        "stream": false
+      }
+    ]
+  },
+  "flamethrower_reload_empty": {
+    "category": "player",
+    "subtitle": "subtitles.flamethrower_reload",
+    "sounds": [
+      {
+        "name": "zombiekit:flamethrower_reload_empty",
+        "stream": false
+      }
+    ]
   }
 }

@@ -13,6 +13,7 @@ import net.minecraft.world.entity.projectile.ItemSupplier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkHooks;
@@ -22,7 +23,10 @@ import java.util.Random;
 
 
 @OnlyIn(value = Dist.CLIENT, _interface = ItemSupplier.class)
-public abstract class ModProjectile  extends AbstractArrow implements ItemSupplier {
+public abstract class ModProjectile extends AbstractArrow implements ItemSupplier {
+
+    protected boolean noGround = true;
+
     public ModProjectile(EntityType<? extends AbstractArrow> entityType, Level level) {
         super(entityType, level);
     }
@@ -31,13 +35,8 @@ public abstract class ModProjectile  extends AbstractArrow implements ItemSuppli
         super(type, x, y, z, world);
     }
 
-    public ModProjectile(EntityType<? extends AbstractArrow> type, LivingEntity entity, Level world) {
-        super(type, entity, world);
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
+    public ModProjectile(EntityType<? extends AbstractArrow> type, LivingEntity owner, Level world) {
+        super(type, owner, world);
     }
 
     @Override
@@ -67,12 +66,16 @@ public abstract class ModProjectile  extends AbstractArrow implements ItemSuppli
     }
 
     public void isOnGround(){
-        if (this.inGround)
+        if (this.inGround && noGround)
             this.discard();
     }
 
     public static void initProjectileEntity(AbstractArrow entityArrow, Level world, LivingEntity entity, RandomSource random, float power, double damage, int knockback){
-        entityArrow.shoot(entity.getViewVector(1).x, entity.getViewVector(1).y, entity.getViewVector(1).z, power * 2, 0);
+        initProjectileEntity(entityArrow, world, entity.getLookAngle(), random, power, damage, knockback);
+    }
+
+    public static void initProjectileEntity(AbstractArrow entityArrow, Level world, Vec3 angle, RandomSource random, float power, double damage, int knockback){
+        entityArrow.shoot(angle.x, angle.y, angle.z, power * 2, 0);
         entityArrow.setSilent(true);
         entityArrow.setCritArrow(false);
         entityArrow.setBaseDamage(damage);

@@ -2,9 +2,11 @@ package com.scarasol.zombiekit.item.weapon;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
-import com.scarasol.sona.init.SonaMobEffects;
 import com.scarasol.sona.item.IRustItem;
 import com.scarasol.zombiekit.config.CommonConfig;
+import com.scarasol.zombiekit.init.ZombieKitKeyMappings;
+import com.scarasol.zombiekit.item.weapon.parts.GripParts;
+import com.scarasol.zombiekit.item.api.SingleHandWeapon;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -21,7 +23,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-public class Crowbar extends SwordItem implements IRustItem {
+public class Crowbar extends SwordItem implements IRustItem, SingleHandWeapon {
 
     private Multimap<Attribute, AttributeModifier> weaponModifiers;
 
@@ -39,6 +41,20 @@ public class Crowbar extends SwordItem implements IRustItem {
     public Multimap<Attribute, AttributeModifier> getDefaultAttributeModifiers(EquipmentSlot equipmentSlot) {
         initModifier();
         return equipmentSlot == EquipmentSlot.MAINHAND ? this.weaponModifiers : super.getDefaultAttributeModifiers(equipmentSlot);
+    }
+
+    @Override
+    public Multimap<Attribute, AttributeModifier> getAttributeModifiers(EquipmentSlot slot, ItemStack stack) {
+        if (slot == EquipmentSlot.MAINHAND) {
+            ImmutableMultimap.Builder<Attribute, AttributeModifier> builder = ImmutableMultimap.builder();
+            builder.putAll(super.getAttributeModifiers(slot, stack));
+            Item grip = getGripParts(stack);
+            if (grip instanceof GripParts gripParts) {
+                builder.putAll(gripParts.getWeaponModifiers(this));
+            }
+            return builder.build();
+        }
+        return super.getAttributeModifiers(slot, stack);
     }
 
     public void initModifier() {
@@ -61,6 +77,9 @@ public class Crowbar extends SwordItem implements IRustItem {
     public void appendHoverText(@NotNull ItemStack itemstack, Level world, @NotNull List<Component> list, @NotNull TooltipFlag flag) {
         super.appendHoverText(itemstack, world, list, flag);
         list.add(Component.translatable("item.zombiekit.crowbar.description"));
+        list.add(Component.translatable("item.zombiekit.modification", ZombieKitKeyMappings.MODIFICATION_GUI.getKey().getDisplayName()));
+        if (getTier() != Tiers.NETHERITE)
+            list.add(Component.translatable("item.zombiekit.level_limit"));
     }
 
     @Override
@@ -68,5 +87,14 @@ public class Crowbar extends SwordItem implements IRustItem {
         if (toolAction == ToolActions.SWORD_SWEEP)
             return false;
         return super.canPerformAction(stack, toolAction);
+    }
+
+    @Override
+    public int getMaxDamage(ItemStack itemStack) {
+        float modifier = 1;
+        Item item = getGripParts(itemStack);
+        if (item instanceof GripParts gripParts)
+            modifier = modifier * gripParts.getDurabilityModifier();
+        return Math.round(super.getMaxDamage(itemStack) * modifier);
     }
 }

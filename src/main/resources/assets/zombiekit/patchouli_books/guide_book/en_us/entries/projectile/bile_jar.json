@@ -2,7 +2,7 @@
   "name": "Bile Jar",
   "icon": "zombiekit:bile_jar",
   "category": "zombiekit:projectile",
-  "sortnum": 3,
+  "sortnum": 4,
   "pages": [
     {
       "type": "patchouli:spotlight",

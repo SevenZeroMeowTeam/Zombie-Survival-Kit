@@ -4,6 +4,7 @@ import com.scarasol.sona.init.SonaMobEffects;
 import com.scarasol.zombiekit.block.entity.InjectorBlockEntity;
 import com.scarasol.zombiekit.init.ZombieKitBlocks;
 import com.scarasol.zombiekit.init.ZombieKitItems;
+import com.scarasol.zombiekit.init.ZombieKitSounds;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
@@ -191,11 +192,11 @@ public class InjectorBlock extends Block implements EntityBlock {
                 server.sendParticles(ParticleTypes.SNOWFLAKE, x, y, z, 500, 0, 0.5, 0, 0.1);
                 entity.addEffect(new MobEffectInstance(SonaMobEffects.FROST.get(), 140, 3));
             }else if (value == 3){
-                world.playSound(null, pos, ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation("zombiekit:acid_spray")), SoundSource.BLOCKS, 1, 1);
+                world.playSound(null, pos, ZombieKitSounds.acid_spray.get(), SoundSource.BLOCKS, 1, 1);
                 server.sendParticles(nitricAcid, x, y, z, 500, 0.2, 0.5, 0.2, 0.1);
                 entity.addEffect(new MobEffectInstance(SonaMobEffects.CORROSION.get(), 400, 2));
             }else if (value == 4){
-                world.playSound(null, pos, ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation("zombiekit:acid_spray")), SoundSource.BLOCKS, 1, 1);
+                world.playSound(null, pos, ZombieKitSounds.acid_spray.get(), SoundSource.BLOCKS, 1, 1);
                 server.sendParticles(ParticleTypes.GLOW_SQUID_INK, x, y, z, 100, 0, 0.5, 0, 0.1);
                 entity.addEffect(new MobEffectInstance(MobEffects.GLOWING, 1200, 0));
                 entity.addEffect(new MobEffectInstance(SonaMobEffects.CONFUSION.get(), 90, 0));
