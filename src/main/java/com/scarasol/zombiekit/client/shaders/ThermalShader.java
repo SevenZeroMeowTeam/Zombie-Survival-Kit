@@ -11,10 +11,8 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.PostChain;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.chunk.ChunkRenderDispatcher;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
@@ -52,12 +50,13 @@ public class ThermalShader implements ResourceManagerReloadListener {
 
     private static final Map<ChunkPos, LuminousCache> LUMINOUS_CACHE = new ConcurrentHashMap<>();
     private static final List<LuminousBlock> VISIBLE_LUMINOUS_BLOCKS = new ArrayList<>();
-    private static final int STALE_TICKS = 200;
 
-    private record LuminousBlock(BlockState state, ChunkPos chunkPos, int emission, int color, int worldX, int worldY, int worldZ) {
+
+    private record LuminousBlock(BlockState state, ChunkPos chunkPos, int emission, int color, int worldX, int worldY,
+                                 int worldZ) {
     }
 
-    private record LuminousCache(List<LuminousBlock> blocks, long tick) {
+    private record LuminousCache(List<LuminousBlock> blocks) {
     }
 
     public static void setSeeThroughWalls(boolean seeThrough) {
@@ -139,7 +138,6 @@ public class ThermalShader implements ResourceManagerReloadListener {
         }
 
         // 获取 Buffer
-        RenderTarget thermalBuffer = thermalChain.getTempTarget("thermal_buffer");
         RenderTarget blockBuffer = thermalChain.getTempTarget(BLOCK_TARGET);
         RenderTarget entityBuffer = thermalChain.getTempTarget(ENTITY_TARGET);
         if (blockBuffer == null || entityBuffer == null) {
@@ -238,19 +236,15 @@ public class ThermalShader implements ResourceManagerReloadListener {
         if (mc.level == null) {
             return;
         }
-        long gameTime = mc.level.getGameTime();
         ChunkPos chunkPos = new ChunkPos(pos);
         MapColor mapColor = state.getMapColor(level, pos);
         int color = mapColor != null ? mapColor.col : MapColor.NONE.col;
         LUMINOUS_CACHE.compute(chunkPos, (cp, cache) -> {
-            List<LuminousBlock> list;
-            if (cache == null || gameTime - cache.tick() > STALE_TICKS) {
-                list = new ArrayList<>();
-            } else {
-                list = new ArrayList<>(cache.blocks());
-            }
+            List<LuminousBlock> list = cache == null ? new ArrayList<>() : new ArrayList<>(cache.blocks());
+            ;
+
             list.add(new LuminousBlock(state, chunkPos, emission, color, pos.getX(), pos.getY(), pos.getZ()));
-            return new LuminousCache(list, gameTime);
+            return new LuminousCache(list);
         });
     }
 
@@ -265,7 +259,7 @@ public class ThermalShader implements ResourceManagerReloadListener {
             return;
         }
 
-        long gameTime = mc.level.getGameTime();
+
         VISIBLE_LUMINOUS_BLOCKS.clear();
         for (Object info : infos) {
             if (!(info instanceof RenderChunkInfoAccessor infoAccessor)) {
@@ -274,11 +268,28 @@ public class ThermalShader implements ResourceManagerReloadListener {
             ChunkRenderDispatcher.RenderChunk renderChunk = infoAccessor.zombiekit$getChunk();
             ChunkPos chunkPos = new ChunkPos(renderChunk.getOrigin());
             LuminousCache cache = LUMINOUS_CACHE.get(chunkPos);
-            if (cache == null || gameTime - cache.tick() > STALE_TICKS) {
+            if (cache == null) {
+                continue;
+            }
+            List<LuminousBlock> validBlocks = new ArrayList<>();
+            for (LuminousBlock block : cache.blocks()) {
+                BlockPos pos = new BlockPos(block.worldX(), block.worldY(), block.worldZ());
+                BlockState currentState = mc.level.getBlockState(pos);
+                int emission = currentState.getLightEmission(mc.level, pos);
+                if (!currentState.isAir() && emission > 0) {
+                    MapColor mapColor = currentState.getMapColor(mc.level, pos);
+                    int color = mapColor != null ? mapColor.col : MapColor.NONE.col;
+                    validBlocks.add(new LuminousBlock(currentState, chunkPos, emission, color, block.worldX(), block.worldY(), block.worldZ()));
+                }
+            }
+            if (validBlocks.isEmpty()) {
                 LUMINOUS_CACHE.remove(chunkPos);
                 continue;
             }
-            VISIBLE_LUMINOUS_BLOCKS.addAll(cache.blocks());
+            if (validBlocks.size() != cache.blocks().size()) {
+                LUMINOUS_CACHE.put(chunkPos, new LuminousCache(validBlocks));
+            }
+            VISIBLE_LUMINOUS_BLOCKS.addAll(validBlocks);
         }
     }
 
