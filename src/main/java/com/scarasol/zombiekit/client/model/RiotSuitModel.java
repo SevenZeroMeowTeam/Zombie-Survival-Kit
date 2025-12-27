@@ -18,28 +18,14 @@ import com.mojang.blaze3d.vertex.PoseStack;
 // Made with Blockbench 4.8.3
 // Exported for Minecraft version 1.17 or later with Mojang mappings
 // Paste this class into your mod and generate all required imports
-public class RiotSuitModel<T extends Entity> extends EntityModel<T> {
+public class RiotSuitModel<T extends Entity> extends AbstractArmorModel<T> {
 	// This layer location should be baked with EntityRendererProvider.Context in
 	// the entity renderer and passed into this model's constructor
 	public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(new ResourceLocation("zombiekit", "modelriot_suit"), "main");
-	public final ModelPart Head;
-	public final ModelPart Body;
-	public final ModelPart RightArm;
-	public final ModelPart LeftArm;
-	public final ModelPart RightLeg;
-	public final ModelPart LeftLeg;
-	public final ModelPart LeftShoes;
-	public final ModelPart RightShoes;
+
 
 	public RiotSuitModel(ModelPart root) {
-		this.Head = root.getChild("Head");
-		this.Body = root.getChild("Body");
-		this.RightArm = root.getChild("RightArm");
-		this.LeftArm = root.getChild("LeftArm");
-		this.RightLeg = root.getChild("RightLeg");
-		this.LeftLeg = root.getChild("LeftLeg");
-		this.LeftShoes = root.getChild("LeftShoes");
-		this.RightShoes = root.getChild("RightShoes");
+		super(root);
 	}
 
 	public static LayerDefinition createBodyLayer() {

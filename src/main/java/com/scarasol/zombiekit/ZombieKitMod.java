@@ -27,10 +27,12 @@ public class ZombieKitMod
         // Register ourselves for server and other game events we are interested in
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         ZombieKitSounds.REGISTRY.register(bus);
+        ZombieKitParticleTypes.REGISTRY.register(bus);
         ZombieKitBlocks.REGISTRY.register(bus);
         ZombieKitItems.REGISTRY.register(bus);
         ZombieKitEntities.REGISTRY.register(bus);
         ZombieKitBlockEntities.REGISTRY.register(bus);
+        ZombieKitMenus.REGISTRY.register(bus);
         ZombieKitTabs.REGISTRY.register(bus);
         MinecraftForge.EVENT_BUS.register(this);
         NetworkHandler.addNetworkMessage();

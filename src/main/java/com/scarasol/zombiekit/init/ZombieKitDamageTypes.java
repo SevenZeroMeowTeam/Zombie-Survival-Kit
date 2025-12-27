@@ -23,4 +23,8 @@ public class ZombieKitDamageTypes {
     public static DamageSource damageSource(RegistryAccess registryAccess, ResourceKey<DamageType> resourceKey, Entity arrow, Entity owner){
         return new DamageSource(registryAccess.registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(resourceKey), arrow, owner);
     }
+
+    public static DamageSource damageSource(RegistryAccess registryAccess, ResourceKey<DamageType> resourceKey, Entity owner){
+        return new DamageSource(registryAccess.registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(resourceKey), owner);
+    }
 }

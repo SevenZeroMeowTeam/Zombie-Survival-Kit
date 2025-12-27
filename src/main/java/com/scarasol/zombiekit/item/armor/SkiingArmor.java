@@ -1,10 +1,11 @@
 package com.scarasol.zombiekit.item.armor;
 
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.scarasol.zombiekit.client.model.SkiingSuitModel;
+import com.scarasol.zombiekit.init.ZombieKitModels;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -25,6 +26,7 @@ import java.util.function.Consumer;
 
 public class SkiingArmor extends ArmorItem {
 
+    public final static Map<EquipmentSlot, HumanoidModel<LivingEntity>> ARMOR_MODEL = Maps.newHashMap();
 
     public SkiingArmor(ArmorMaterial armorMaterial, Type equipmentSlot, Properties properties) {
         super(armorMaterial, equipmentSlot, properties);
@@ -32,6 +34,7 @@ public class SkiingArmor extends ArmorItem {
 
     @Override
     public void onInventoryTick(ItemStack itemStack, Level level, Player player, int slotIndex, int selectedIndex){
+        super.onInventoryTick(itemStack, level, player, slotIndex, selectedIndex);
         if (getEquipmentSlot() == EquipmentSlot.HEAD && Iterables.contains(player.getArmorSlots(), itemStack)){
             player.removeEffect(MobEffects.BLINDNESS);
         }
@@ -47,35 +50,20 @@ public class SkiingArmor extends ArmorItem {
         return "zombiekit:textures/entities/skiing_suit.png";
     }
 
+    @OnlyIn(Dist.CLIENT)
     public HumanoidModel getArmorModel(){
-        Map<String, ModelPart> map = new HashMap<>(Map.of(
-                "head", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "hat", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "body", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "right_arm", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "left_arm", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "right_leg", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "left_leg", new ModelPart(Collections.emptyList(), Collections.emptyMap())
-        ));
-        switch (getEquipmentSlot()){
-            case HEAD -> map.put("head", new SkiingSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(SkiingSuitModel.LAYER_LOCATION)).Head);
-            case CHEST -> {
-                map.put("body", new SkiingSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(SkiingSuitModel.LAYER_LOCATION)).Body);
-                map.put("right_arm", new SkiingSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(SkiingSuitModel.LAYER_LOCATION)).RightArm);
-                map.put("left_arm", new SkiingSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(SkiingSuitModel.LAYER_LOCATION)).LeftArm);
-            }
-            case LEGS -> {
-                map.put("right_leg", new SkiingSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(SkiingSuitModel.LAYER_LOCATION)).RightLeg);
-                map.put("left_leg", new SkiingSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(SkiingSuitModel.LAYER_LOCATION)).LeftLeg);
-            }
-            default -> {
-                map.put("right_leg", new SkiingSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(SkiingSuitModel.LAYER_LOCATION)).RightShoes);
-                map.put("left_leg", new SkiingSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(SkiingSuitModel.LAYER_LOCATION)).LeftShoes);
+        if (ARMOR_MODEL.isEmpty()) {
+            for (EquipmentSlot equipmentSlot : EquipmentSlot.values()) {
+                if (equipmentSlot.isArmor()) {
+                    ARMOR_MODEL.put(equipmentSlot, ZombieKitModels.getDefaultArmorModel(equipmentSlot, new SkiingSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(SkiingSuitModel.LAYER_LOCATION))));
+                }
             }
         }
-        return new HumanoidModel(new ModelPart(Collections.emptyList(), Map.copyOf(map)));
+        return ARMOR_MODEL.get(getEquipmentSlot());
     }
 
+    @Override
+    @OnlyIn(Dist.CLIENT)
     public void initializeClient(Consumer<IClientItemExtensions> consumer) {
         consumer.accept(new IClientItemExtensions() {
             @Override

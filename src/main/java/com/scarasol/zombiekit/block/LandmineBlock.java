@@ -1,13 +1,17 @@
 package com.scarasol.zombiekit.block;
 
+import com.scarasol.zombiekit.entity.projectile.LandmineEntity;
 import com.scarasol.zombiekit.init.ZombieKitBlocks;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Tuple;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.Entity;
@@ -31,6 +35,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,9 +43,9 @@ import java.util.List;
 
 public class LandmineBlock extends Block implements BombBlock {
 
-    public List<MobEffectInstance> areaEffectCloudEffect = new ArrayList<>();
+    public List<Tuple<Tuple<String, Integer>, Integer>> areaEffectCloudEffect = new ArrayList<>();
 
-    public LandmineBlock(Properties properties, List<MobEffectInstance> areaEffectCloudEffect) {
+    public LandmineBlock(Properties properties, List<Tuple<Tuple<String, Integer>, Integer>> areaEffectCloudEffect) {
         super(properties);
         this.areaEffectCloudEffect.addAll(areaEffectCloudEffect);
     }
@@ -91,7 +96,7 @@ public class LandmineBlock extends Block implements BombBlock {
 
     @Override
     public int getExplodeLevel() {
-        return areaEffectCloudEffect.isEmpty() ? 4 : 2;
+        return areaEffectCloudEffect.isEmpty() ? 4 : 1;
     }
 
     @Override
@@ -139,6 +144,8 @@ public class LandmineBlock extends Block implements BombBlock {
     @Override
     public void entityInside(BlockState blockstate, Level world, BlockPos pos, Entity entity) {
         super.entityInside(blockstate, world, pos, entity);
+        if (entity instanceof LandmineEntity)
+            return;
         exploded(world, pos.getX(), pos.getY(), pos.getZ(), getExplodeLevel());
         if (!areaEffectCloudEffect.isEmpty())
             spawnAreaEffectCloud(world, pos.getX(), pos.getY(), pos.getZ());
@@ -161,8 +168,12 @@ public class LandmineBlock extends Block implements BombBlock {
         AreaEffectCloud areaEffectCloud = new AreaEffectCloud(level, x, y, z);
         areaEffectCloud.setDuration(200);
         areaEffectCloud.setRadius(4);
-        for (MobEffectInstance effectInstance : areaEffectCloudEffect){
-            areaEffectCloud.addEffect(effectInstance);
+        for (Tuple<Tuple<String, Integer>, Integer> effectInstance : areaEffectCloudEffect){
+            MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(new ResourceLocation(effectInstance.getA().getA()));
+            if (effect != null) {
+                areaEffectCloud.addEffect(new MobEffectInstance(effect, effectInstance.getA().getB(), effectInstance.getB(), false, false));
+            }
+
         }
         level.addFreshEntity(areaEffectCloud);
     }

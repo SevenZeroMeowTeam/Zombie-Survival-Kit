@@ -13,6 +13,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -32,10 +33,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PlayMessages;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import java.util.Comparator;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class DroneEntity extends Mechanics{
     protected BlockPos hoverPlace;
@@ -204,6 +202,13 @@ public class DroneEntity extends Mechanics{
         this.spawnAtLocation(new ItemStack(ZombieKitItems.DRONE_COMPONENTS.get()));
     }
 
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        if (!source.is(DamageTypes.FALL))
+            return super.hurt(source, amount);
+        return false;
+    }
+
 
     public static AttributeSupplier.Builder createAttributes() {
         AttributeSupplier.Builder builder = Mob.createMobAttributes();
@@ -271,6 +276,7 @@ public class DroneEntity extends Mechanics{
 
         public boolean searchPlayer(){
             List<Player> list = DroneEntity.this.level().getNearbyPlayers(this.attackTargeting, DroneEntity.this, DroneEntity.this.getBoundingBox().inflate(16.0, 15.0, 16.0));
+            list.removeIf(Objects::isNull);
             if (!list.isEmpty()) {
                 list.sort((Comparator<LivingEntity>) (l1, l2) -> {
                     double a = Math.pow(l1.getX() - DroneEntity.this.getX(), 2) + Math.pow(l1.getZ() - DroneEntity.this.getZ(), 2);

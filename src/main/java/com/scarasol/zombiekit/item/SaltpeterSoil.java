@@ -15,10 +15,12 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import java.util.Random;
 
-public class SaltpeterSoil extends Item {
+public class SaltpeterSoil extends TooltipItem {
     public SaltpeterSoil(Properties properties) {
         super(properties);
     }
+
+
 
     @Override
     public InteractionResult useOn(UseOnContext context) {

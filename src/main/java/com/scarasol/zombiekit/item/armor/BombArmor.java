@@ -1,6 +1,10 @@
 package com.scarasol.zombiekit.item.armor;
 
+import com.google.common.collect.Maps;
 import com.scarasol.zombiekit.client.model.BombSuitModel;
+import com.scarasol.zombiekit.client.model.RiotSuitModel;
+import com.scarasol.zombiekit.client.model.TacticalSuitModel;
+import com.scarasol.zombiekit.init.ZombieKitModels;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
@@ -30,6 +34,7 @@ public class BombArmor extends ArmorItem {
     public static AttributeModifier ATTACK_SPEED = new AttributeModifier(UUID.fromString("0753E5E5-B0B5-6828-0B38-350A5885B144"), "bombArmorAttackSpeed", -0.3, AttributeModifier.Operation.MULTIPLY_TOTAL);
     public static AttributeModifier SLOWNESS = new AttributeModifier(UUID.fromString("CE35FE84-FF47-B780-0EC6-9164DCF1CED6"), "bombArmorSlowness", -0.3, AttributeModifier.Operation.MULTIPLY_TOTAL);
     public static AttributeModifier HEALTH_BOOST = new AttributeModifier(UUID.fromString("bec5f226-4b78-5014-b906-2fb397957925"), "bombArmorHealthBoost", 20, AttributeModifier.Operation.ADDITION);
+    public final static Map<EquipmentSlot, HumanoidModel<LivingEntity>> ARMOR_MODEL = Maps.newHashMap();
 
     public BombArmor(ArmorMaterial armorMaterial, Type equipmentSlot, Properties properties) {
         super(armorMaterial, equipmentSlot, properties);
@@ -40,43 +45,26 @@ public class BombArmor extends ArmorItem {
         return "zombiekit:textures/entities/bomb_suit.png";
     }
 
-
-
+    @OnlyIn(Dist.CLIENT)
     public HumanoidModel getArmorModel(){
-        Map<String, ModelPart> map = new HashMap<>(Map.of(
-                "head", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "hat", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "body", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "right_arm", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "left_arm", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "right_leg", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "left_leg", new ModelPart(Collections.emptyList(), Collections.emptyMap())
-        ));
-        switch (getEquipmentSlot()){
-            case HEAD -> map.put("head", new BombSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(BombSuitModel.LAYER_LOCATION)).Head);
-            case CHEST -> {
-                map.put("body", new BombSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(BombSuitModel.LAYER_LOCATION)).Body);
-                map.put("right_arm", new BombSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(BombSuitModel.LAYER_LOCATION)).RightArm);
-                map.put("left_arm", new BombSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(BombSuitModel.LAYER_LOCATION)).LeftArm);
-            }
-            case LEGS -> {
-                map.put("right_leg", new BombSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(BombSuitModel.LAYER_LOCATION)).RightLeg);
-                map.put("left_leg", new BombSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(BombSuitModel.LAYER_LOCATION)).LeftLeg);
-            }
-            default -> {
-                map.put("right_leg", new BombSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(BombSuitModel.LAYER_LOCATION)).RightShoes);
-                map.put("left_leg", new BombSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(BombSuitModel.LAYER_LOCATION)).LeftShoes);
+        if (ARMOR_MODEL.isEmpty()) {
+            for (EquipmentSlot equipmentSlot : EquipmentSlot.values()) {
+                if (equipmentSlot.isArmor()) {
+                    ARMOR_MODEL.put(equipmentSlot, ZombieKitModels.getDefaultArmorModel(equipmentSlot, new BombSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(BombSuitModel.LAYER_LOCATION))));
+                }
             }
         }
-        return new HumanoidModel(new ModelPart(Collections.emptyList(), Map.copyOf(map)));
+        return ARMOR_MODEL.get(getEquipmentSlot());
     }
 
+    @Override
+    @OnlyIn(Dist.CLIENT)
     public void initializeClient(Consumer<IClientItemExtensions> consumer) {
         consumer.accept(new IClientItemExtensions() {
             @Override
             @OnlyIn(Dist.CLIENT)
-            public HumanoidModel getHumanoidArmorModel(LivingEntity living, ItemStack stack, EquipmentSlot slot, HumanoidModel defaultModel) {
-                HumanoidModel armorModel = BombArmor.this.getArmorModel();
+            public HumanoidModel<LivingEntity> getHumanoidArmorModel(LivingEntity living, ItemStack stack, EquipmentSlot slot, HumanoidModel defaultModel) {
+                HumanoidModel<LivingEntity> armorModel = BombArmor.this.getArmorModel();
                 armorModel.crouching = living.isShiftKeyDown();
                 armorModel.riding = defaultModel.riding;
                 armorModel.young = living.isBaby();

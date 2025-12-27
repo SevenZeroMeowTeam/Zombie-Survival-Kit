@@ -1,30 +1,34 @@
 package com.scarasol.zombiekit.event;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.scarasol.sona.init.SonaMobEffects;
 import com.scarasol.sona.manager.RustManager;
+import com.scarasol.sona.util.SonaRenderer;
 import com.scarasol.zombiekit.block.InjectorBlock;
 import com.scarasol.zombiekit.block.ShortwaveRadioBlock;
+import com.scarasol.zombiekit.client.renderer.FlameThrowerRenderer;
+import com.scarasol.zombiekit.compat.SBWCompat;
 import com.scarasol.zombiekit.config.CommonConfig;
-import com.scarasol.zombiekit.entity.goal.HeavyMachineGunUsingGoal;
+import com.scarasol.zombiekit.entity.ai.goal.FlamethrowerUsingGoal;
+import com.scarasol.zombiekit.entity.ai.goal.HeavyMachineGunUsingGoal;
 import com.scarasol.zombiekit.entity.mechanics.HeavyMachineGunEntity;
+import com.scarasol.zombiekit.entity.mechanics.MortarEntity;
 import com.scarasol.zombiekit.entity.mechanics.UvLampEntity;
 import com.scarasol.zombiekit.init.ZombieKitItems;
 import com.scarasol.zombiekit.init.ZombieKitTags;
 import com.scarasol.zombiekit.item.armor.BombArmor;
 import com.scarasol.zombiekit.item.armor.ExoArmor;
-import com.scarasol.zombiekit.network.MapVariables;
-import com.scarasol.zombiekit.network.NetworkHandler;
-import com.scarasol.zombiekit.network.SavedDataSyncPacket;
+import com.scarasol.zombiekit.item.weapon.Flamethrower;
+import com.scarasol.zombiekit.network.*;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Registry;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.animal.IronGolem;
@@ -41,12 +45,14 @@ import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
 import net.minecraftforge.event.entity.living.*;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -54,6 +60,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.registries.ForgeRegistries;
+import software.bernie.geckolib.event.GeoRenderEvent;
 
 import java.util.Random;
 
@@ -89,45 +96,12 @@ public class EventHandler {
     }
 
     @SubscribeEvent
-    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        if (!event.getEntity().level().isClientSide()) {
-            SavedData mapData = MapVariables.get(event.getEntity().level());
-            if (mapData != null)
-                NetworkHandler.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) event.getEntity()), new SavedDataSyncPacket(mapData));
-        }
-    }
-
-
-    @SubscribeEvent
-    public static void rightClickItem(PlayerInteractEvent.RightClickItem event) {
-        Player player = event.getEntity();
-        Entity entity = player.getVehicle();
-        if (entity instanceof HeavyMachineGunEntity heavyMachineGunEntity && !(player.hasEffect(SonaMobEffects.STUN.get()) || (player.hasEffect(SonaMobEffects.SLIMINESS.get()) && player.hasEffect(SonaMobEffects.FROST.get())))) {
-            boolean flag1 = !player.getItemInHand(InteractionHand.MAIN_HAND).is(ZombieKitItems.HEAVY_MACHINE_GUN_AMMO.get());
-            boolean flag2 = !player.getItemInHand(InteractionHand.OFF_HAND).is(ZombieKitItems.HEAVY_MACHINE_GUN_AMMO.get());
-            ItemStack itemStack = player.getItemInHand(event.getHand());
-            if (itemStack.is(ZombieKitItems.HEAVY_MACHINE_GUN_AMMO.get()) && (event.getHand() == InteractionHand.MAIN_HAND || flag1)) {
-                heavyMachineGunEntity.fire();
-                player.addEffect(new MobEffectInstance(SonaMobEffects.EXPOSURE.get(), 20, 3, false, false));
-                if (!player.getAbilities().instabuild && !heavyMachineGunEntity.getOverload()) {
-                    itemStack.setCount(itemStack.getCount() - 1);
-                }
-            } else if (flag1 && flag2 && event.getHand() == InteractionHand.MAIN_HAND) {
-                heavyMachineGunEntity.level().playSound(null, heavyMachineGunEntity.getX(), heavyMachineGunEntity.getY(), heavyMachineGunEntity.getZ(), ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation("zombiekit:heavy_machine_gun_trigger")), SoundSource.BLOCKS, 1, 1);
-            }
-
-        }
-    }
-
-    @SubscribeEvent
-    public static void rightClickEmpty(PlayerInteractEvent.RightClickEmpty event) {
-        Player player = event.getEntity();
-        Entity entity = player.getVehicle();
-        if (entity instanceof HeavyMachineGunEntity heavyMachineGunEntity && !(player.hasEffect(SonaMobEffects.STUN.get()) || (player.hasEffect(SonaMobEffects.SLIMINESS.get()) && player.hasEffect(SonaMobEffects.FROST.get())))) {
-            boolean flag1 = !player.getItemInHand(InteractionHand.MAIN_HAND).is(ZombieKitItems.HEAVY_MACHINE_GUN_AMMO.get());
-            boolean flag2 = !player.getItemInHand(InteractionHand.OFF_HAND).is(ZombieKitItems.HEAVY_MACHINE_GUN_AMMO.get());
-            if (flag1 && flag2 && event.getHand() == InteractionHand.MAIN_HAND) {
-                heavyMachineGunEntity.level().playSound(player, heavyMachineGunEntity.getX(), heavyMachineGunEntity.getY(), heavyMachineGunEntity.getZ(), ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation("zombiekit:heavy_machine_gun_trigger")), SoundSource.BLOCKS, 1, 1);
+    public static void onPlayerLoggedIn(EntityJoinLevelEvent event) {
+        Level level = event.getEntity().level();
+        if (!level.isClientSide() && event.getEntity() instanceof ServerPlayer player) {
+            SavedData mapData = MapVariables.get(level);
+            if (mapData != null) {
+                NetworkHandler.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new SavedDataSyncPacket(mapData));
             }
         }
     }
@@ -141,20 +115,64 @@ public class EventHandler {
         }
     }
 
+    @OnlyIn(Dist.CLIENT)
     @SubscribeEvent
-    public static void onEntityTick(LivingEvent.LivingTickEvent event) {
-        if (event != null && event.getEntity() != null) {
-            if (event.getEntity() instanceof HeavyMachineGunEntity syncable) {
-                String animation = syncable.getSyncedAnimation();
-                if (!animation.equals("undefined")) {
-                    syncable.setAnimation("undefined");
-                    syncable.animationprocedure = animation;
+    public static void switchAngleOfMortar(InputEvent.MouseScrollingEvent event) {
+        if (Minecraft.getInstance().player.getVehicle() instanceof MortarEntity && Minecraft.getInstance().options.keySprint.isDown()) {
+            NetworkHandler.PACKET_HANDLER.sendToServer(new MouseInputPacket(2, event.getScrollDelta()));
+            event.setCanceled(true);
+        }
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    @SubscribeEvent
+    public static void mouseInput(InputEvent.MouseButton.Pre event) {
+        Player player = Minecraft.getInstance().player;
+        if (event.getButton() == 0 && player != null && Minecraft.getInstance().screen == null) {
+            if (!(player.hasEffect(SonaMobEffects.STUN.get()) || (player.hasEffect(SonaMobEffects.SLIMINESS.get()) && player.hasEffect(SonaMobEffects.FROST.get())))) {
+                if (player.getVehicle() instanceof HeavyMachineGunEntity heavyMachineGunEntity) {
+                    NetworkHandler.PACKET_HANDLER.sendToServer(new MouseInputPacket(0, event.getAction()));
+                    event.setCanceled(true);
+                    heavyMachineGunEntity.setFire(event.getAction() == 1);
+                }else if (player.getMainHandItem().getItem() instanceof Flamethrower) {
+                    NetworkHandler.PACKET_HANDLER.sendToServer(new MouseInputPacket(0, event.getAction()));
+                    event.setCanceled(true);
+                }else if (event.getAction() == 1 && ForgeRegistries.ITEMS.getKey(player.getMainHandItem().getItem()).toString().equals("superbwarfare:monitor")) {
+                    if (Minecraft.getInstance().options.keySprint.isDown() && SBWCompat.droneCover(player, player.getMainHandItem(), player.level(), false) != null)
+                        event.setCanceled(true);
                 }
             }
         }
     }
 
-    public static boolean illagerWhiteList(Mob mob){
+    @OnlyIn(Dist.CLIENT)
+    @SubscribeEvent
+    public static void mouseInput(RenderLevelStageEvent event) {
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft.options.keySprint.isDown()) {
+                Player player = minecraft.player;
+                if (ForgeRegistries.ITEMS.getKey(player.getMainHandItem().getItem()).toString().equals("superbwarfare:monitor")) {
+                    BlockPos blockPos = SBWCompat.droneCover(player, player.getMainHandItem(), player.level(), true);
+                    if (blockPos != null) {
+                        Vec3 camPos = minecraft.gameRenderer.getMainCamera().getPosition();
+                        PoseStack poseStack = event.getPoseStack();
+                        poseStack.pushPose();
+                        MultiBufferSource multiBufferSource = minecraft.renderBuffers().bufferSource();
+                        SonaRenderer.renderHalo(poseStack, multiBufferSource, blockPos, camPos, Direction.UP, 5.0F, 0xFF0000, 2);
+                        SonaRenderer.renderHalo(poseStack, multiBufferSource, blockPos, camPos, Direction.UP, 2.0F, 0xFF0000, 2);
+                        SonaRenderer.renderRotatingCross(poseStack, multiBufferSource, blockPos, camPos, Direction.UP, 5.0F, 1.0F, 0xFF0000, 2);
+                        poseStack.popPose();
+                    }
+
+                }
+            }
+
+
+        }
+    }
+    public static boolean illagerWhiteList(Mob mob) {
         return com.scarasol.sona.configuration.CommonConfig.findIndex(ForgeRegistries.ENTITY_TYPES.getKey(mob.getType()).toString(), CommonConfig.ILLAGER_WHITELIST.get()) != -1;
     }
 
@@ -165,14 +183,17 @@ public class EventHandler {
             return;
         Level level = entity.level();
         if (entity instanceof Mob newSpawn) {
-            if (newSpawn.getType().is(ZombieKitTags.MACHINE_GUNNER)){
+            if (newSpawn.getType().is(ZombieKitTags.MACHINE_GUNNER)) {
                 if ((newSpawn instanceof Raider || illagerWhiteList(newSpawn)) && CommonConfig.RAIDER_INDEPENDENCE.get()) {
-                    newSpawn.goalSelector.addGoal(1, new HeavyMachineGunUsingGoal<>(newSpawn, 25f, livingEntity -> livingEntity instanceof Mob mob && (mob.getType().is(ZombieKitTags.SURVIVORS) || livingEntity instanceof IronGolem || livingEntity instanceof AbstractVillager || (livingEntity instanceof Enemy && !(livingEntity instanceof Creeper || livingEntity instanceof NeutralMob || illagerWhiteList(mob)))), true));
-                }else if (newSpawn instanceof Enemy){
-                    newSpawn.goalSelector.addGoal(1, new HeavyMachineGunUsingGoal<>(newSpawn, 25f, null, true));
-                }else {
-                    newSpawn.goalSelector.addGoal(1, new HeavyMachineGunUsingGoal<>(newSpawn, 25f, livingEntity -> livingEntity instanceof Enemy && !(livingEntity instanceof Creeper || livingEntity instanceof NeutralMob), false));
+                    newSpawn.goalSelector.addGoal(1, new HeavyMachineGunUsingGoal<>(newSpawn, livingEntity -> livingEntity instanceof Mob mob && (mob.getType().is(ZombieKitTags.SURVIVORS) || livingEntity instanceof IronGolem || livingEntity instanceof AbstractVillager || (livingEntity instanceof Enemy && !(livingEntity instanceof Creeper || livingEntity instanceof NeutralMob || illagerWhiteList(mob)))), true));
+                } else if (newSpawn instanceof Enemy) {
+                    newSpawn.goalSelector.addGoal(1, new HeavyMachineGunUsingGoal<>(newSpawn, null, true));
+                } else {
+                    newSpawn.goalSelector.addGoal(1, new HeavyMachineGunUsingGoal<>(newSpawn, livingEntity -> livingEntity instanceof Enemy && !(livingEntity instanceof Creeper || livingEntity instanceof NeutralMob), false));
                 }
+            }
+            if (newSpawn.getType().is(ZombieKitTags.FLAMETHROWER)) {
+                newSpawn.goalSelector.addGoal(1, new FlamethrowerUsingGoal<>(newSpawn));
             }
             if ((newSpawn instanceof Raider || illagerWhiteList(newSpawn)) && CommonConfig.RAIDER_INDEPENDENCE.get()) {
                 newSpawn.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(newSpawn, Mob.class, 5, false, false, livingEntity -> livingEntity instanceof Enemy && !(livingEntity instanceof Raider || livingEntity instanceof Creeper || livingEntity instanceof NeutralMob || (livingEntity instanceof Mob mob && illagerWhiteList(mob)))));
@@ -181,7 +202,7 @@ public class EventHandler {
                     newSpawn.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(newSpawn, Mob.class, 5, false, false, livingEntity -> livingEntity instanceof UvLampEntity));
                 if (CommonConfig.RAIDER_INDEPENDENCE.get())
                     newSpawn.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(newSpawn, Mob.class, 5, false, false, livingEntity -> livingEntity instanceof Raider || (livingEntity instanceof Mob mob && illagerWhiteList(mob))));
-                if (newSpawn instanceof Zombie && !(newSpawn instanceof ZombieVillager && !entity.getPersistentData().getBoolean("spawn_have_changed"))) {
+                if (newSpawn instanceof Zombie && !(newSpawn instanceof ZombieVillager) && !event.loadedFromDisk()) {
                     if (Mth.nextInt(level.getRandom(), 1, 100) <= CommonConfig.EQUIPMENT_INITIALIZATION.get() * 100) {
                         double i = Mth.nextInt(level.getRandom(), 1, 4);
                         if (1 == i) {
@@ -220,7 +241,6 @@ public class EventHandler {
                             newSpawn.setItemSlot(EquipmentSlot.HEAD, new ItemStack(ZombieKitItems.BOMB_HELMET.get()));
                         }
                     }
-                    entity.getPersistentData().putBoolean("spawn_have_changed", true);
                 }
             }
         }
@@ -278,4 +298,13 @@ public class EventHandler {
         }
 
     }
+
+    @OnlyIn(Dist.CLIENT)
+    @SubscribeEvent
+    public static void flameThrowerRender(GeoRenderEvent.Item.Pre event) {
+        ItemStack itemStack = event.getItemStack();
+        if (FlameThrowerRenderer.transformType != null && FlameThrowerRenderer.transformType.firstPerson())
+            event.setCanceled(Minecraft.getInstance().player.getOffhandItem() == itemStack);
+    }
+
 }

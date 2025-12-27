@@ -1,6 +1,10 @@
 package com.scarasol.zombiekit.item.armor;
 
+import com.google.common.collect.Maps;
+import com.scarasol.zombiekit.client.model.BombSuitModel;
 import com.scarasol.zombiekit.client.model.RiotSuitModel;
+import com.scarasol.zombiekit.client.model.SkiingSuitModel;
+import com.scarasol.zombiekit.init.ZombieKitModels;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
@@ -19,6 +23,9 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 public class RiotArmor extends CamouflageArmor{
+
+    public final static Map<EquipmentSlot, HumanoidModel<LivingEntity>> ARMOR_MODEL = Maps.newHashMap();
+
     public RiotArmor(ArmorMaterial armorMaterial, Type equipmentSlot, Properties properties, int camouflage) {
         super(armorMaterial, equipmentSlot, properties, camouflage);
     }
@@ -41,35 +48,20 @@ public class RiotArmor extends CamouflageArmor{
         }
     }
 
+    @OnlyIn(Dist.CLIENT)
     public HumanoidModel getArmorModel(){
-        Map<String, ModelPart> map = new HashMap<>(Map.of(
-                "head", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "hat", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "body", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "right_arm", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "left_arm", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "right_leg", new ModelPart(Collections.emptyList(), Collections.emptyMap()),
-                "left_leg", new ModelPart(Collections.emptyList(), Collections.emptyMap())
-        ));
-        switch (getEquipmentSlot()){
-            case HEAD -> map.put("head", new RiotSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(RiotSuitModel.LAYER_LOCATION)).Head);
-            case CHEST -> {
-                map.put("body", new RiotSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(RiotSuitModel.LAYER_LOCATION)).Body);
-                map.put("right_arm", new RiotSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(RiotSuitModel.LAYER_LOCATION)).RightArm);
-                map.put("left_arm", new RiotSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(RiotSuitModel.LAYER_LOCATION)).LeftArm);
-            }
-            case LEGS -> {
-                map.put("right_leg", new RiotSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(RiotSuitModel.LAYER_LOCATION)).RightLeg);
-                map.put("left_leg", new RiotSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(RiotSuitModel.LAYER_LOCATION)).LeftLeg);
-            }
-            default -> {
-                map.put("right_leg", new RiotSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(RiotSuitModel.LAYER_LOCATION)).RightShoes);
-                map.put("left_leg", new RiotSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(RiotSuitModel.LAYER_LOCATION)).LeftShoes);
+        if (ARMOR_MODEL.isEmpty()) {
+            for (EquipmentSlot equipmentSlot : EquipmentSlot.values()) {
+                if (equipmentSlot.isArmor()) {
+                    ARMOR_MODEL.put(equipmentSlot, ZombieKitModels.getDefaultArmorModel(equipmentSlot, new RiotSuitModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(RiotSuitModel.LAYER_LOCATION))));
+                }
             }
         }
-        return new HumanoidModel(new ModelPart(Collections.emptyList(), Map.copyOf(map)));
+        return ARMOR_MODEL.get(getEquipmentSlot());
     }
 
+    @Override
+    @OnlyIn(Dist.CLIENT)
     public void initializeClient(Consumer<IClientItemExtensions> consumer) {
         consumer.accept(new IClientItemExtensions() {
             @Override

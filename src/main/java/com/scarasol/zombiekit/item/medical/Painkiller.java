@@ -1,9 +1,6 @@
 package com.scarasol.zombiekit.item.medical;
 
-import com.scarasol.sona.accessor.ILivingEntityAccessor;
-import com.scarasol.sona.configuration.CommonConfig;
 import com.scarasol.sona.init.SonaMobEffects;
-import com.scarasol.sona.manager.InjuryManager;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;

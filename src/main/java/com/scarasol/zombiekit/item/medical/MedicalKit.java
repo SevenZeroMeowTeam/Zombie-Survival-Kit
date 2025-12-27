@@ -1,6 +1,6 @@
 package com.scarasol.zombiekit.item.medical;
 
-import com.scarasol.sona.accessor.ILivingEntityAccessor;
+import com.scarasol.sona.accessor.mixin.ILivingEntityAccessor;
 import com.scarasol.sona.configuration.CommonConfig;
 import com.scarasol.sona.init.SonaMobEffects;
 import com.scarasol.sona.manager.InjuryManager;
@@ -47,9 +47,9 @@ public class MedicalKit extends Item {
         entity.addEffect(new MobEffectInstance(SonaMobEffects.ANALGESIC.get(), 3600, 0));
         if (CommonConfig.INJURY_OPEN.get() && entity instanceof ILivingEntityAccessor livingEntityAccessor){
             InjuryManager.addInjury(livingEntityAccessor, com.scarasol.zombiekit.config.CommonConfig.MEDICAL_INJURY.get());
-            InjuryManager.addBandage(livingEntityAccessor, com.scarasol.zombiekit.config.CommonConfig.BANDAGE_INJURY.get());
+            InjuryManager.addBandage(livingEntityAccessor, com.scarasol.zombiekit.config.CommonConfig.MEDICAL_BANDAGE.get());
         }
-        if (!(entity instanceof Player player) || !player.isCreative()){
+        if (entity instanceof Player player && !player.isCreative()){
             itemstack.hurtAndBreak(1, entity, consumer -> {
                 entity.broadcastBreakEvent(EquipmentSlot.MAINHAND);
             });

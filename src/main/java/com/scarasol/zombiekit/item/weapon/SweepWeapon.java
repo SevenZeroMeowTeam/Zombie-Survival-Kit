@@ -8,9 +8,9 @@ import net.minecraft.world.entity.player.Player;
 
 
 public interface SweepWeapon {
-    default void sweepEffect(LivingEntity target, LivingEntity attacker){
+    default void sweepEffect(LivingEntity target, LivingEntity attacker, float damage){
         if (attacker instanceof Player player && CommonConfig.SWEEP.get()){
-            target.hurt(attacker.level().damageSources().playerAttack(player), (float) (player.getAttributeValue(Attributes.ATTACK_DAMAGE) * CommonConfig.SWEEP_MULTIPLIER.get()));
+            target.hurt(attacker.level().damageSources().playerAttack(player), (float) (damage * CommonConfig.SWEEP_MULTIPLIER.get()));
         }
     }
 }

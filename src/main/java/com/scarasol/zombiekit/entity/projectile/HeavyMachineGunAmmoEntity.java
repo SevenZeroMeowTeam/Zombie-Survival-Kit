@@ -1,8 +1,10 @@
 package com.scarasol.zombiekit.entity.projectile;
 
+import com.scarasol.zombiekit.api.NoAttenuationProjectile;
 import com.scarasol.zombiekit.config.CommonConfig;
 import com.scarasol.zombiekit.init.ZombieKitDamageTypes;
 import com.scarasol.zombiekit.init.ZombieKitEntities;
+import com.scarasol.zombiekit.init.ZombieKitSounds;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
@@ -28,7 +30,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import java.util.Random;
 
 @OnlyIn(value = Dist.CLIENT, _interface = ItemSupplier.class)
-public class HeavyMachineGunAmmoEntity extends ModProjectile {
+public class HeavyMachineGunAmmoEntity extends ModProjectile implements NoAttenuationProjectile {
     private int life = 0;
 
     public HeavyMachineGunAmmoEntity(PlayMessages.SpawnEntity packet, Level world) {
@@ -61,7 +63,7 @@ public class HeavyMachineGunAmmoEntity extends ModProjectile {
     @Override
     public void tick() {
         super.tick();
-        if (++life > 200)
+        if (++life > 60)
             this.discard();
     }
 
@@ -96,7 +98,6 @@ public class HeavyMachineGunAmmoEntity extends ModProjectile {
     public void onHitBlock(BlockHitResult blockHitResult) {
         super.onHitBlock(blockHitResult);
         BlockState blockState = this.level().getBlockState(blockHitResult.getBlockPos());
-        Block block = blockState.getBlock();
         if(blockState.is(BlockTags.create(new ResourceLocation("forge:glass"))) || blockState.is(BlockTags.create(new ResourceLocation("forge:glass_panes")))){
             this.level().destroyBlock(blockHitResult.getBlockPos(), false, this);
         }
@@ -106,16 +107,14 @@ public class HeavyMachineGunAmmoEntity extends ModProjectile {
     public void doEffects(Level level, double x, double y, double z) {
     }
 
-    public static HeavyMachineGunAmmoEntity shoot(Level world, LivingEntity entity, RandomSource random, float power, double damage, int knockback) {
+    public static void shoot(Level world, LivingEntity entity, float power, double damage, int knockback) {
         HeavyMachineGunAmmoEntity entityArrow = new HeavyMachineGunAmmoEntity(ZombieKitEntities.HEAVY_MACHINE_GUN_AMMO.get(), entity, world);
-        entityArrow.shoot(entity.getViewVector(1).x, entity.getViewVector(1).y, entity.getViewVector(1).z, power * 2, 0);
+        entityArrow.shoot(entity.getViewVector(1).x, entity.getViewVector(1).y, entity.getViewVector(1).z, power, 0);
         entityArrow.setSilent(true);
         entityArrow.setCritArrow(false);
         entityArrow.setBaseDamage(damage);
         entityArrow.setKnockback(knockback);
         entityArrow.setNoGravity(true);
         world.addFreshEntity(entityArrow);
-        world.playSound(null, entity.getX(), entity.getY(), entity.getZ(), ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation("zombiekit:heavy_machine_gun_fire")), SoundSource.BLOCKS, 2.5F, 1f / (random.nextFloat() * 0.5f + 1) + (power / 2));
-        return entityArrow;
     }
 }

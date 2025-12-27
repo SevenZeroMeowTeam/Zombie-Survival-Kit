@@ -28,7 +28,8 @@ public class HeavyMachineGun extends Item {
     @Override
     public void appendHoverText(ItemStack itemstack, Level world, List<Component> list, TooltipFlag flag) {
         super.appendHoverText(itemstack, world, list, flag);
-        list.add(Component.translatable("item.zombiekit.heavy_machine_gun.description"));
+        list.add(Component.translatable("item.zombiekit.heavy_machine_gun.description_1"));
+        list.add(Component.translatable("item.zombiekit.heavy_machine_gun.description_2"));
     }
 
     @Override
@@ -38,7 +39,6 @@ public class HeavyMachineGun extends Item {
         if (context.getLevel() instanceof ServerLevel server) {
             BlockPos clickPos = context.getClickedPos();
             Direction direction = context.getClickedFace();
-            Direction playerDirection = entity.getDirection();
             HeavyMachineGunEntity machine_gun = ZombieKitEntities.HEAVY_MACHINE_GUN.get().create(server);
             switch (direction) {
                 case UP -> machine_gun.setPos(clickPos.getX() + 0.5, clickPos.getY() + 1.5, clickPos.getZ() + 0.5);
@@ -47,12 +47,6 @@ public class HeavyMachineGun extends Item {
                 case EAST -> machine_gun.setPos(clickPos.getX() + 1.5, clickPos.getY() + 0.5, clickPos.getZ() + 0.5);
                 case SOUTH -> machine_gun.setPos(clickPos.getX() + 0.5, clickPos.getY() + 0.5, clickPos.getZ() + 1.5);
                 case NORTH -> machine_gun.setPos(clickPos.getX() + 0.5, clickPos.getY() + 0.5, clickPos.getZ() - 0.5);
-            }
-            switch (playerDirection) {
-                case WEST -> machine_gun.setDirection("WEST");
-                case EAST -> machine_gun.setDirection("EAST");
-                case SOUTH -> machine_gun.setDirection("SOUTH");
-                case NORTH -> machine_gun.setDirection("NORTH");
             }
             machine_gun.finalizeSpawn(server, server.getCurrentDifficultyAt(clickPos), MobSpawnType.SPAWN_EGG, null, null);
             server.addFreshEntityWithPassengers(machine_gun);

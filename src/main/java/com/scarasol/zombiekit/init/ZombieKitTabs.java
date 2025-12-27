@@ -29,6 +29,7 @@ public class ZombieKitTabs {
                                 output.accept(item.get());
                         });
                     }).build());
+
     public static RegistryObject<CreativeModeTab> TAB_ZOMBIEKIT_COMBAT = REGISTRY.register("zombiekit_combat",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.zombiekit_combat"))
@@ -36,12 +37,13 @@ public class ZombieKitTabs {
                     .displayItems((features, output) -> {
                         AtomicBoolean flag = new AtomicBoolean(true);
                         ZombieKitItems.REGISTRY.getEntries().forEach(item -> {
-                            if (item.get() == ZombieKitItems.BANDAGE.get())
+                            if (item.get() == ZombieKitItems.PRIMARY_LIGHT_WEIGHTED_GRIP.get())
                                 flag.set(false);
                             if (flag.get())
                                 output.accept(item.get());
                         });
                     }).build());
+
     public static RegistryObject<CreativeModeTab> TAB_ZOMBIEKIT_TOOL = REGISTRY.register("zombiekit_tool",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.zombiekit_tool"))
@@ -52,6 +54,22 @@ public class ZombieKitTabs {
                             if (item.get() == ZombieKitItems.BANDAGE.get())
                                 flag.set(true);
                             if (item.get() == ZombieKitItems.DESERT_CAMOUFLAGE_DYE.get())
+                                flag.set(false);
+                            if (flag.get())
+                                output.accept(item.get());
+                        });
+                    }).build());
+
+    public static RegistryObject<CreativeModeTab> TAB_ZOMBIEKIT_PARTS = REGISTRY.register("zombiekit_parts",
+            () -> CreativeModeTab.builder()
+                    .title(Component.translatable("itemGroup.zombiekit_parts"))
+                    .icon(() -> new ItemStack(ZombieKitItems.PRIMARY_LIGHT_WEIGHTED_GRIP.get()))
+                    .displayItems((features, output) -> {
+                        AtomicBoolean flag = new AtomicBoolean(false);
+                        ZombieKitItems.REGISTRY.getEntries().forEach(item -> {
+                            if (item.get() == ZombieKitItems.PRIMARY_LIGHT_WEIGHTED_GRIP.get())
+                                flag.set(true);
+                            if (item.get() == ZombieKitItems.BANDAGE.get())
                                 flag.set(false);
                             if (flag.get())
                                 output.accept(item.get());

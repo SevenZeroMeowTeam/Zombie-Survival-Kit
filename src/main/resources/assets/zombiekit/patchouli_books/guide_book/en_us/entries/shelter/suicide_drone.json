@@ -15,8 +15,7 @@
 	  "text": "enemy, and guarding the shelter all the time? And even in the face of a sea of zombies, drones can also be used as cruise missiles. After all, zombies are vulnerable in the face of heavy firepower. Of course, for individuals,"
     },
 	{
-      "type": "patchouli:crafting",
-      "recipe": "zombiekit:drone",
+      "type": "patchouli:text",
 	  "text": "especially in the apocalypse, the cost of a drone is not low, but for survival, these are worth it."
     },
 	{

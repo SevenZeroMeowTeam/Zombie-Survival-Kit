@@ -1,10 +1,9 @@
 package com.scarasol.zombiekit.item.medical;
 
-import com.scarasol.sona.accessor.ILivingEntityAccessor;
+import com.scarasol.sona.accessor.mixin.ILivingEntityAccessor;
 import com.scarasol.sona.configuration.CommonConfig;
 import com.scarasol.sona.init.SonaMobEffects;
 import com.scarasol.sona.manager.InfectionManager;
-import com.scarasol.sona.manager.InjuryManager;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
@@ -18,8 +17,6 @@ import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 public class Miracle extends Item {

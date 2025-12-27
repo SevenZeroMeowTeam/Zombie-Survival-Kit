@@ -3,6 +3,7 @@ package com.scarasol.zombiekit.entity.projectile;
 import com.scarasol.zombiekit.init.ZombieKitEntities;
 import com.scarasol.zombiekit.init.ZombieKitItems;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.resources.ResourceLocation;
@@ -17,6 +18,7 @@ import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.ItemSupplier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseFireBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
@@ -65,11 +67,8 @@ public class MolotovCocktailEntity extends ModProjectile {
         return entityArrow;
     }
 
-
-
-    public void doEffects(Level level, double x, double y, double z) {
+    public static void burn(Level level, double x, double y, double z, double radius) {
         double cst_pi = Math.acos(-1);
-        double cst_r = 3;
         double cst_tha1 = 2 * cst_pi;
         double kx = Mth.floor(x);
         double ky = Mth.floor(y);
@@ -79,7 +78,7 @@ public class MolotovCocktailEntity extends ModProjectile {
             double tha2 = 0;
             while (tha2 <= cst_pi) {
                 double sr = 0;
-                while (sr <= cst_r) {
+                while (sr <= radius) {
                     double sx = sr * Math.sin(tha2) * Math.cos(tha1);
                     double sz = sr * Math.sin(tha2) * Math.sin(tha1);
                     double sy = sr * Math.cos(tha2);
@@ -87,28 +86,31 @@ public class MolotovCocktailEntity extends ModProjectile {
                     sz = kz + sz;
                     sy = ky + sy;
                     BlockPos blockPos = BlockPos.containing(sx, sy, sz);
-                    if (level.isEmptyBlock(blockPos) || level.getBlockState(blockPos).getBlock() == Blocks.SNOW || level.getBlockState(blockPos).getBlock() == Blocks.FIRE
-                            || level.getBlockState(blockPos).getBlock() == Blocks.SOUL_FIRE) {
-                        if (Blocks.FIRE.defaultBlockState().canSurvive(level, blockPos)) {
-                            if (random.nextInt(10) > 6) {
-                                level.setBlock(blockPos, Blocks.FIRE.defaultBlockState(), 3);
-                            }
-                        } else if (Blocks.SOUL_FIRE.defaultBlockState().canSurvive(level, blockPos)) {
-                            if (random.nextInt(10) > 6) {
-                                level.setBlock(blockPos, Blocks.SOUL_FIRE.defaultBlockState(), 3);
-                            }
-                        }
+                    if (level.getBlockState(blockPos).getBlock() instanceof BaseFireBlock) {
                         sr = sr + 1;
-                    } else {
+                        continue;
+                    }
+                    if (BaseFireBlock.canBePlacedAt(level, blockPos, Direction.DOWN)) {
+                        Random random = new Random();
+                        if (random.nextInt(10) > 7) {
+                            level.setBlock(blockPos, BaseFireBlock.getState(level, blockPos), 3);
+                        }
+                        break;
+                    } else if (!level.isEmptyBlock(blockPos) && !level.getBlockState(blockPos).canOcclude()){
                         break;
                     }
+                    sr = sr + 1;
                 }
                 tha2 = tha2 + cst_pi / 18;
             }
             tha1 = tha1 + cst_tha1 / 36;
         }
+    }
+
+    public void doEffects(Level level, double x, double y, double z) {
+        burn(level, x, y, z, 3);
         if (level instanceof ServerLevel serverLevel) {
-            level.playSound(null, BlockPos.containing(kx, ky, kz), SoundEvents.GLASS_BREAK, SoundSource.NEUTRAL, 1, 1);
+            level.playSound(null, BlockPos.containing(x, y, z), SoundEvents.GLASS_BREAK, SoundSource.NEUTRAL, 1, 1);
             serverLevel.sendParticles(ParticleTypes.FLAME, x, y, z, 500, 1, 1, 1, 0.05);
         }
     }
