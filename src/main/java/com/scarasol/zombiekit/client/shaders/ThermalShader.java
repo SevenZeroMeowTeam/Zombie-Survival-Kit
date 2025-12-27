@@ -42,6 +42,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Mod.EventBusSubscriber(value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class ThermalShader implements ResourceManagerReloadListener {
     private static final ResourceLocation THERMAL_EFFECT = new ResourceLocation("zombiekit", "shaders/post/thermal.json");
+    private static final String BLOCK_TARGET = "thermal_buffer";
+    private static final String ENTITY_TARGET = "thermal_entity_buffer";
     private static boolean isActive = false;
     private static PostChain thermalChain;
     private static int lastWidth = 0;
@@ -138,35 +140,30 @@ public class ThermalShader implements ResourceManagerReloadListener {
 
         // 获取 Buffer
         RenderTarget thermalBuffer = thermalChain.getTempTarget("thermal_buffer");
-        if (thermalBuffer == null) {
+        RenderTarget blockBuffer = thermalChain.getTempTarget(BLOCK_TARGET);
+        RenderTarget entityBuffer = thermalChain.getTempTarget(ENTITY_TARGET);
+        if (blockBuffer == null || entityBuffer == null) {
             return;
         }
 
-        thermalBuffer.setClearColor(0.0F, 0.0F, 0.0F, 0.0F);
-        thermalBuffer.clear(Minecraft.ON_OSX);
-        if (!seeThroughWalls) {
-
-            if (mc.getMainRenderTarget().isStencilEnabled() && !thermalBuffer.isStencilEnabled()) {
-                thermalBuffer.enableStencil();
-            }
-
-            try {
-                thermalBuffer.copyDepthFrom(mc.getMainRenderTarget());
-            } catch (Throwable ignored) {
-                seeThroughWalls = true;
-            }
-        }
-        thermalBuffer.bindWrite(true);
+        prepareRenderTarget(blockBuffer, mc);
+        prepareRenderTarget(entityBuffer, mc);
 
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 cameraPos = camera.getPosition();
 
         poseStack.pushPose();
-        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
+
         RenderSystem.enablePolygonOffset();
         RenderSystem.polygonOffset(-1.0F, -1.0F);
         mc.getEntityRenderDispatcher().setRenderShadow(false);
+        blockBuffer.bindWrite(true);
+        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
         renderLuminousBlocks(mc, poseStack, bufferSource, cameraPos);
+        bufferSource.endBatch();
+
+        entityBuffer.bindWrite(true);
+        MultiBufferSource.BufferSource entitySource = mc.renderBuffers().bufferSource();
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (isHotEntity(entity)) {
                 double lerpX = Mth.lerp(partialTick, entity.xo, entity.getX());
@@ -181,13 +178,13 @@ public class ThermalShader implements ResourceManagerReloadListener {
                         entity.getViewYRot(partialTick),
                         partialTick,
                         poseStack,
-                        bufferSource,
+                        entitySource,
                         15728880
                 );
             }
         }
 
-        bufferSource.endBatch();
+        entitySource.endBatch();
         RenderSystem.disablePolygonOffset();
         poseStack.popPose();
 
@@ -215,6 +212,22 @@ public class ThermalShader implements ResourceManagerReloadListener {
         }
 //        return entity instanceof LivingEntity || entity.isOnFire();
         return true;
+    }
+
+    private static void prepareRenderTarget(RenderTarget target, Minecraft mc) {
+        target.setClearColor(0.0F, 0.0F, 0.0F, 0.0F);
+        target.clear(Minecraft.ON_OSX);
+        if (!seeThroughWalls) {
+            if (mc.getMainRenderTarget().isStencilEnabled() && !target.isStencilEnabled()) {
+                target.enableStencil();
+            }
+
+            try {
+                target.copyDepthFrom(mc.getMainRenderTarget());
+            } catch (Throwable ignored) {
+                seeThroughWalls = true;
+            }
+        }
     }
 
     public static void recordLuminousBlock(BlockAndTintGetter level, BlockState state, BlockPos pos, int emission) {
