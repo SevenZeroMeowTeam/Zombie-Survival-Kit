@@ -2,21 +2,39 @@ package com.scarasol.zombiekit.client.shaders;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.scarasol.zombiekit.mixin.LevelRendererAccessor;
+import com.scarasol.zombiekit.mixin.RenderChunkInfoAccessor;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.PostChain;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.chunk.ChunkRenderDispatcher;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author Scarasol
@@ -29,6 +47,16 @@ public class ThermalShader implements ResourceManagerReloadListener {
     private static int lastWidth = 0;
     private static int lastHeight = 0;
     private static boolean seeThroughWalls = true;
+
+    private static final Map<ChunkPos, LuminousCache> LUMINOUS_CACHE = new ConcurrentHashMap<>();
+    private static final List<LuminousBlock> VISIBLE_LUMINOUS_BLOCKS = new ArrayList<>();
+    private static final int STALE_TICKS = 200;
+
+    private record LuminousBlock(BlockState state, ChunkPos chunkPos, int emission, int color, int worldX, int worldY, int worldZ) {
+    }
+
+    private record LuminousCache(List<LuminousBlock> blocks, long tick) {
+    }
 
     public static void setSeeThroughWalls(boolean seeThrough) {
         seeThroughWalls = seeThrough;
@@ -69,6 +97,7 @@ public class ThermalShader implements ResourceManagerReloadListener {
         }
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+            collectVisibleLuminousBlocks();
             prepareAndRenderEntities(event.getPoseStack(), event.getPartialTick());
         } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
             applyPostProcess(event.getPartialTick());
@@ -137,6 +166,7 @@ public class ThermalShader implements ResourceManagerReloadListener {
         RenderSystem.enablePolygonOffset();
         RenderSystem.polygonOffset(-1.0F, -1.0F);
         mc.getEntityRenderDispatcher().setRenderShadow(false);
+        renderLuminousBlocks(mc, poseStack, bufferSource, cameraPos);
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (isHotEntity(entity)) {
                 double lerpX = Mth.lerp(partialTick, entity.xo, entity.getX());
@@ -185,5 +215,73 @@ public class ThermalShader implements ResourceManagerReloadListener {
         }
 //        return entity instanceof LivingEntity || entity.isOnFire();
         return true;
+    }
+
+    public static void recordLuminousBlock(BlockAndTintGetter level, BlockState state, BlockPos pos, int emission) {
+        if (emission <= 0) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
+            return;
+        }
+        long gameTime = mc.level.getGameTime();
+        ChunkPos chunkPos = new ChunkPos(pos);
+        MapColor mapColor = state.getMapColor(level, pos);
+        int color = mapColor != null ? mapColor.col : MapColor.NONE.col;
+        LUMINOUS_CACHE.compute(chunkPos, (cp, cache) -> {
+            List<LuminousBlock> list;
+            if (cache == null || gameTime - cache.tick() > STALE_TICKS) {
+                list = new ArrayList<>();
+            } else {
+                list = new ArrayList<>(cache.blocks());
+            }
+            list.add(new LuminousBlock(state, chunkPos, emission, color, pos.getX(), pos.getY(), pos.getZ()));
+            return new LuminousCache(list, gameTime);
+        });
+    }
+
+    private static void collectVisibleLuminousBlocks() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || !(mc.levelRenderer instanceof LevelRendererAccessor accessor)) {
+            return;
+        }
+
+        ObjectArrayList<?> infos = accessor.zombiekit$getRenderChunksInFrustum();
+        if (infos == null) {
+            return;
+        }
+
+        long gameTime = mc.level.getGameTime();
+        VISIBLE_LUMINOUS_BLOCKS.clear();
+        for (Object info : infos) {
+            if (!(info instanceof RenderChunkInfoAccessor infoAccessor)) {
+                continue;
+            }
+            ChunkRenderDispatcher.RenderChunk renderChunk = infoAccessor.zombiekit$getChunk();
+            ChunkPos chunkPos = new ChunkPos(renderChunk.getOrigin());
+            LuminousCache cache = LUMINOUS_CACHE.get(chunkPos);
+            if (cache == null || gameTime - cache.tick() > STALE_TICKS) {
+                LUMINOUS_CACHE.remove(chunkPos);
+                continue;
+            }
+            VISIBLE_LUMINOUS_BLOCKS.addAll(cache.blocks());
+        }
+    }
+
+    private static void renderLuminousBlocks(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, Vec3 cameraPos) {
+        if (VISIBLE_LUMINOUS_BLOCKS.isEmpty()) {
+            return;
+        }
+        for (LuminousBlock block : VISIBLE_LUMINOUS_BLOCKS) {
+            int worldX = block.worldX();
+            int worldZ = block.worldZ();
+            int worldY = block.worldY();
+            poseStack.pushPose();
+            poseStack.translate(worldX - cameraPos.x, worldY - cameraPos.y, worldZ - cameraPos.z);
+            BlockRenderDispatcher dispatcher = mc.getBlockRenderer();
+            dispatcher.renderSingleBlock(block.state(), poseStack, bufferSource, 15728880, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+            poseStack.popPose();
+        }
     }
 }

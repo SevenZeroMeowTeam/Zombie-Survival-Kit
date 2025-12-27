@@ -50,10 +50,14 @@ void main() {
     }
 
     // 实体热源处理
-    bool isEntityHot = thermalColor.a > 0.01 || dot(thermalColor.rgb, vec3(1.0)) > 0.01;
+    float texMax = max(max(thermalColor.r, thermalColor.g), thermalColor.b);
+    float texMin = min(min(thermalColor.r, thermalColor.g), thermalColor.b);
+    float texSat = texMax - texMin;
+    bool hasAlphaHole = thermalColor.a < 0.95;
+    bool isEntityHot = (texMax > 0.05 && thermalColor.a > 0.01 && hasAlphaHole) || texMax > 0.6;
     if (isEntityHot) {
         float texLuma = luma(thermalColor.rgb);
-        float heat = 0.4 + 0.6 * texLuma;
+        float heat = 0.4 + 0.6 * max(texMax, texSat);
         heat = pow(heat, 0.8);
 
         vec3 colCold = vec3(0.3);

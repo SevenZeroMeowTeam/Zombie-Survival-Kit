@@ -11,9 +11,12 @@
     "ServerLevelMixin"
   ],
   "client": [
+    "LevelRendererAccessor",
     "LocalPlayerMixin",
     "MinecraftMixin",
-    "PlayerRendererMixin"
+    "ModelBlockRendererMixin",
+    "PlayerRendererMixin",
+    "RenderChunkInfoAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
