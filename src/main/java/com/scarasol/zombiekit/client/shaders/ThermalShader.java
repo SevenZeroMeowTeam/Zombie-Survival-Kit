@@ -98,7 +98,7 @@ public class ThermalShader implements ResourceManagerReloadListener {
             return;
         }
 
-        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
             collectVisibleLuminousBlocks();
             prepareAndRenderEntities(event.getPoseStack(), event.getPartialTick());
         } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
