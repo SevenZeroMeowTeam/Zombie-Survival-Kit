@@ -5,6 +5,7 @@
   "refmap": "zombiekit.refmap.json",
   "mixins": [
     "AbstractArrowMixin",
+    "EntityMixin",
     "LivingEntityMixin",
     "PillagerMixin",
     "PlayerMixin",

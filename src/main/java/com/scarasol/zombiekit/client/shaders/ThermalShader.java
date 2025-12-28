@@ -4,6 +4,7 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.scarasol.zombiekit.ZombieKitMod;
 import com.scarasol.zombiekit.mixin.LevelRendererAccessor;
 import com.scarasol.zombiekit.mixin.RenderChunkInfoAccessor;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -27,6 +28,7 @@ import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -91,9 +93,8 @@ public class ThermalShader implements ResourceManagerReloadListener {
 
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
-        setActive(true);
         setSeeThroughWalls(false);
-
+        setActive(true);
         if (!isActive) {
             return;
         }
@@ -104,6 +105,12 @@ public class ThermalShader implements ResourceManagerReloadListener {
         } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
             applyPostProcess(event.getPartialTick());
         }
+    }
+
+    @SubscribeEvent
+    public static void test(PlayerInteractEvent.RightClickEmpty event) {
+
+        setActive(!isActive());
     }
 
     private static boolean ensureChain(Minecraft mc) {
@@ -199,7 +206,7 @@ public class ThermalShader implements ResourceManagerReloadListener {
             thermalChain.process(partialTick);
         } catch (Exception e) {
             e.printStackTrace();
-            cleanup(); // 发生错误时清理，尝试下一帧重建
+            cleanup();
         }
 
         Minecraft.getInstance().getMainRenderTarget().bindWrite(true);
