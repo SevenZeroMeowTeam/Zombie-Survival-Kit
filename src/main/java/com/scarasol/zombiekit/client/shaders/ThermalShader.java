@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.chunk.ChunkRenderDispatcher;
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.resources.ResourceLocation;
@@ -241,7 +242,6 @@ public class ThermalShader implements ResourceManagerReloadListener {
         int color = mapColor != null ? mapColor.col : MapColor.NONE.col;
         LUMINOUS_CACHE.compute(chunkPos, (cp, cache) -> {
             List<LuminousBlock> list = cache == null ? new ArrayList<>() : new ArrayList<>(cache.blocks());
-            ;
 
             list.add(new LuminousBlock(state, chunkPos, emission, color, pos.getX(), pos.getY(), pos.getZ()));
             return new LuminousCache(list);
@@ -304,7 +304,15 @@ public class ThermalShader implements ResourceManagerReloadListener {
             poseStack.pushPose();
             poseStack.translate(worldX - cameraPos.x, worldY - cameraPos.y, worldZ - cameraPos.z);
             BlockRenderDispatcher dispatcher = mc.getBlockRenderer();
+//            float heatFactor = Mth.clamp(block.emission() / 15.0f, 0.4f, 1.0f);
+//            boolean isLava = block.state().getFluidState().is(FluidTags.LAVA);
+//            float boost = isLava ? 0.8f : 0.25f;
+//            float r = Mth.clamp(1.0f + boost * heatFactor, 1.0f, 1.8f);
+//            float g = Mth.clamp(1.0f + boost * 0.7f * heatFactor, 1.0f, 1.5f);
+//            float b = Mth.clamp(1.0f + boost * 0.4f * heatFactor, 1.0f, 1.3f);
+//            RenderSystem.setShaderColor(r, g, b, 1.0f);
             dispatcher.renderSingleBlock(block.state(), poseStack, bufferSource, 15728880, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+//            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
             poseStack.popPose();
         }
     }

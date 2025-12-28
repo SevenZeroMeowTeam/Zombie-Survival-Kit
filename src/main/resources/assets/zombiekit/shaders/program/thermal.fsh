@@ -52,11 +52,14 @@ void main() {
     }
 
     // 方块热源处理
-    float blockMax = max(max(thermalBlockColor.r, thermalBlockColor.g), thermalBlockColor.b);
-    float blockMin = min(min(thermalBlockColor.r, thermalBlockColor.g), thermalBlockColor.b);
+    vec3 blockSample = clamp((thermalBlockColor.rgb - vec3(0.5)) * 1.35 + vec3(0.5), 0.0, 1.0);
+
+    float blockMax = max(max(blockSample.r, blockSample.g), blockSample.b);
+    float blockMin = min(min(blockSample.r, blockSample.g), blockSample.b);
     float blockSat = blockMax - blockMin;
-    float blockLuma = luma(thermalBlockColor.rgb);
+    float blockLuma = luma(blockSample);
     float blockContrast = max(blockMax - sceneLuma, blockSat * 0.5);
+
     bool hasBlock = (thermalBlockColor.a < 0.99 && blockMax > 0.05)
     || blockContrast > 0.25
     || (blockMax > 0.85 && blockSat > 0.15);

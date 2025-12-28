@@ -12,6 +12,7 @@
   ],
   "client": [
     "LevelRendererAccessor",
+    "LiquidBlockRendererMixin",
     "LocalPlayerMixin",
     "MinecraftMixin",
     "ModelBlockRendererMixin",
