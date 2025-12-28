@@ -1,6 +1,7 @@
 package com.scarasol.zombiekit.client.shaders;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.platform.GlConst;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -10,6 +11,7 @@ import com.scarasol.zombiekit.mixin.RenderChunkInfoAccessor;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
@@ -27,6 +29,9 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderGuiEvent;
+import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.event.RenderHandEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -102,15 +107,19 @@ public class ThermalShader implements ResourceManagerReloadListener {
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
             collectVisibleLuminousBlocks();
             prepareAndRenderEntities(event.getPoseStack(), event.getPartialTick());
-        } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
-            applyPostProcess(event.getPartialTick());
         }
     }
 
-    @SubscribeEvent
-    public static void test(PlayerInteractEvent.RightClickEmpty event) {
 
-        setActive(!isActive());
+    @SubscribeEvent
+    public static void onRenderGui(RenderGuiEvent.Pre event) {
+        if (!isActive || thermalChain == null) {
+            return;
+        }
+        applyPostProcess(event.getPartialTick());
+        RenderSystem.depthMask(true);
+        RenderSystem.clear(GlConst.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
+
     }
 
     private static boolean ensureChain(Minecraft mc) {
@@ -160,8 +169,8 @@ public class ThermalShader implements ResourceManagerReloadListener {
 
         poseStack.pushPose();
 
-        RenderSystem.enablePolygonOffset();
-        RenderSystem.polygonOffset(-1.0F, -1.0F);
+//        RenderSystem.enablePolygonOffset();
+//        RenderSystem.polygonOffset(-1.0F, -1.0F);
         mc.getEntityRenderDispatcher().setRenderShadow(false);
         blockBuffer.bindWrite(true);
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
@@ -191,11 +200,13 @@ public class ThermalShader implements ResourceManagerReloadListener {
         }
 
         entitySource.endBatch();
-        RenderSystem.disablePolygonOffset();
+//        RenderSystem.disablePolygonOffset();
         poseStack.popPose();
 
         mc.getMainRenderTarget().bindWrite(true);
     }
+
+
 
     private static void applyPostProcess(float partialTick) {
         if (thermalChain == null) {
