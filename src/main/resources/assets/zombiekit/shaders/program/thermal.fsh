@@ -3,6 +3,7 @@
 uniform sampler2D DiffuseSampler;
 uniform sampler2D ThermalSampler;
 uniform sampler2D ThermalEntitySampler;
+uniform float Time;
 
 in vec2 texCoord;
 out vec4 fragColor;
@@ -88,6 +89,11 @@ void main() {
         vec3 entityColor = vec3(intensity);
         finalColor = entityColor;
     }
+
+    float filmNoise = random(texCoord * 900.0 + Time * 6.0) - 0.5;
+    float scanLine = sin((texCoord.y + Time * 0.05) * 360.0) * 0.02;
+    float grain = clamp(filmNoise * 0.12 + scanLine, -0.08, 0.08);
+    finalColor = clamp(finalColor + grain, 0.0, 1.0);
 
     fragColor = vec4(finalColor, 1.0);
 }
